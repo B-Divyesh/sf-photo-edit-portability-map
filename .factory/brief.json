@@ -1,0 +1,11 @@
+{
+  "slug": "photo-edit-portability-map",
+  "title": "Edit Portability Map",
+  "territory": "utilities",
+  "user": "Photographers leaving Lightroom or using a read-only external library who need to know exactly which edits, dates, ratings, and metadata will travel safely.",
+  "smallest_useful_product": "Read-only desktop CLI that inventories a Lightroom catalog/XMP and a target folder, classifies fields as embedded, sidecar, catalog-only, or target-unsupported, and produces a migration checklist and verification sample.",
+  "success_measure": "A user can inventory 95% of visible metadata/edit categories before migration and identify every catalog-only field in under 15 minutes.",
+  "artifact_class": "cli",
+  "monetization": "one-time",
+  "constraints": "Read-only catalog access; proprietary edit recipes cannot be faithfully translated; do not ingest image pixels or cloud credentials."
+}

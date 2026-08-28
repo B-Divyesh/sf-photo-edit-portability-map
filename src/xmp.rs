@@ -16,8 +16,16 @@ pub fn inspect(paths: &[std::path::PathBuf], root: &Path) -> Result<XmpInventory
     let mut result = XmpInventory::default();
     for path in paths {
         result.sidecars += 1;
-        let text = fs::read_to_string(path)
-            .with_context(|| format!("could not read XMP sidecar {}", path.display()))?;
+        let text = match fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(error) => {
+                let shown = path.strip_prefix(root).unwrap_or(path);
+                result
+                    .malformed
+                    .push(format!("{}: unreadable text ({error})", shown.display()));
+                continue;
+            }
+        };
         match fields_in_document(&text) {
             Ok(fields) => {
                 for field in fields {

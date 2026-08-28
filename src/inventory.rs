@@ -42,9 +42,9 @@ pub fn scan(options: &ScanOptions) -> Result<Report> {
         .map(catalog::inspect)
         .transpose()?;
 
-    let source_map = asset_map(&source_files.images, &options.source);
-    let target_map = asset_map(&target_files.images, &options.target);
-    let matches = match_assets(&source_map, &target_map);
+    let source_assets = asset_list(&source_files.images, &options.source);
+    let target_assets = asset_list(&target_files.images, &options.target);
+    let matches = match_assets(&source_assets, &target_assets);
     let matched_assets = matches.values().filter(|item| item.is_some()).count();
 
     let mut warnings = source_files.warnings;
@@ -71,7 +71,7 @@ pub fn scan(options: &ScanOptions) -> Result<Report> {
     }
 
     let categories = build_categories(
-        source_map.len(),
+        source_assets.len(),
         &xmp.counts,
         catalog.as_ref().map(|item| &item.counts),
         options.target_app,
@@ -86,10 +86,10 @@ pub fn scan(options: &ScanOptions) -> Result<Report> {
         .count();
 
     let summary = Summary {
-        source_assets: source_map.len(),
-        target_assets: target_map.len(),
+        source_assets: source_assets.len(),
+        target_assets: target_assets.len(),
         matched_assets,
-        missing_assets: source_map.len().saturating_sub(matched_assets),
+        missing_assets: source_assets.len().saturating_sub(matched_assets),
         xmp_sidecars: xmp.sidecars,
         catalog_records: catalog.as_ref().map_or(0, |item| item.records),
         catalog_only_fields,
@@ -176,15 +176,23 @@ fn extension_lower(path: &Path) -> Option<String> {
     Some(path.extension()?.to_str()?.to_ascii_lowercase())
 }
 
-fn asset_map(paths: &[PathBuf], root: &Path) -> BTreeMap<String, String> {
+#[derive(Debug)]
+struct Asset {
+    stem: String,
+    relative: String,
+}
+
+fn asset_list(paths: &[PathBuf], root: &Path) -> Vec<Asset> {
     paths
         .iter()
         .filter_map(|path| {
             let relative = path.strip_prefix(root).ok()?;
             let mut without_extension = relative.to_path_buf();
             without_extension.set_extension("");
-            let key = normalized_path(&without_extension);
-            Some((key, normalized_path(relative)))
+            Some(Asset {
+                stem: normalized_path(&without_extension).to_ascii_lowercase(),
+                relative: normalized_path(relative),
+            })
         })
         .collect()
 }
@@ -196,25 +204,26 @@ fn normalized_path(path: &Path) -> String {
         .join("/")
 }
 
-fn match_assets(
-    sources: &BTreeMap<String, String>,
-    targets: &BTreeMap<String, String>,
-) -> BTreeMap<String, Option<String>> {
-    let mut by_name: BTreeMap<String, Vec<&String>> = BTreeMap::new();
-    for (key, value) in targets {
-        let name = key.rsplit('/').next().unwrap_or(key).to_ascii_lowercase();
-        by_name.entry(name).or_default().push(value);
+fn match_assets(sources: &[Asset], targets: &[Asset]) -> BTreeMap<String, Option<String>> {
+    let mut by_relative = BTreeMap::new();
+    let mut by_stem: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for asset in targets {
+        by_relative.insert(asset.relative.to_ascii_lowercase(), asset.relative.as_str());
+        by_stem
+            .entry(&asset.stem)
+            .or_default()
+            .push(&asset.relative);
     }
     sources
         .iter()
-        .map(|(key, source)| {
-            let exact = targets.get(key).cloned();
-            let fallback = key
-                .rsplit('/')
-                .next()
-                .and_then(|name| by_name.get(&name.to_ascii_lowercase()))
-                .and_then(|items| (items.len() == 1).then(|| (*items[0]).clone()));
-            (source.clone(), exact.or(fallback))
+        .map(|source| {
+            let exact = by_relative
+                .get(&source.relative.to_ascii_lowercase())
+                .map(|value| (*value).to_owned());
+            let fallback = by_stem
+                .get(source.stem.as_str())
+                .and_then(|items| (items.len() == 1).then(|| items[0].to_owned()));
+            (source.relative.clone(), exact.or(fallback))
         })
         .collect()
 }
@@ -506,6 +515,7 @@ mod tests {
         fs::create_dir_all(&target).unwrap();
         fs::write(source.join("one.CR3"), b"not opened").unwrap();
         fs::write(source.join("two.jpg"), b"not opened").unwrap();
+        fs::write(source.join("two.CR3"), b"paired raw is a separate asset").unwrap();
         fs::write(target.join("one.jpg"), b"not opened").unwrap();
         fs::write(
             source.join("one.xmp"),
@@ -528,9 +538,9 @@ mod tests {
             sample_size: 2,
         })
         .unwrap();
-        assert_eq!(report.summary.source_assets, 2);
+        assert_eq!(report.summary.source_assets, 3);
         assert_eq!(report.summary.matched_assets, 1);
-        assert_eq!(report.summary.missing_assets, 1);
+        assert_eq!(report.summary.missing_assets, 2);
         assert_eq!(report.summary.xmp_sidecars, 1);
         assert!(
             report.categories.iter().any(|item| {

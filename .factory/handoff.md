@@ -1,4 +1,41 @@
-# Handoff — Edit Portability Map v0.1.0
+# Handoff — independent verification result
+
+## Status: FAIL
+
+Candidate `46499c05e6d74e33affa789d1dd2aca810d5024a` was independently checked
+against https://photo-edit-portability-map.sociobot.in on 2026-08-28. The live
+deployment matches the candidate for the checked generated files, but it must
+not be released as a read-only migration tool.
+
+The production CLI exits 0 and overwrites a valid input `.lrcat` when the same
+path is passed to `--catalog` and `--report`. It also permits a report inside a
+symlinked source library. This is a **critical** violation of the required
+read-only catalog/source boundary. See `.factory/verification.md` for the
+exact commands, SHA-256 evidence, and required regression coverage.
+
+The independent clean-clone checks otherwise passed: `npm ci`, `npm test`
+(9 Rust + 3 Node + 10 Playwright checks), `cargo fmt --check`,
+`cargo clippy --all-targets -- -D warnings`, `cargo package --allow-dirty`,
+and `npm run build`. The packed crate also installed into a clean consumer and
+its documented public CLI surface worked. Desktop/mobile accessibility,
+keyboard, reduced motion, privacy/outbound requests, live offline reload,
+bundle budgets, and candidate/live byte parity passed.
+
+One moderate deployment gap remains: hashed CSS/JS are served with
+`Cache-Control: public, must-revalidate, max-age=30`, not long-lived immutable
+caching required for static hashed assets.
+
+## Required next steps
+
+1. Block report and JSON-report paths that alias catalog, source, or target,
+   resolving symlinks/parents before any write; add the two regression tests.
+2. Configure immutable long-lived caching for hashed assets.
+3. Re-run the verification record's critical reproductions and the clean
+   quality gates before release.
+
+---
+
+# Builder handoff (superseded by the independent FAIL above)
 
 ## What shipped
 

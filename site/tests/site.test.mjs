@@ -28,3 +28,11 @@ test("motion and focus have explicit accessible treatments", async () => {
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /min-height: 44px/);
 });
+
+test("deployment gives hashed assets immutable caching and a response CSP", async () => {
+  const config = JSON.parse(await read("../public/staticwebapp.config.json"));
+  const assets = config.routes.find((route) => route.route === "/assets/*");
+  assert.equal(assets.headers["Cache-Control"], "public, max-age=31536000, immutable");
+  assert.match(config.globalHeaders["Content-Security-Policy"], /default-src 'self'/);
+  assert.equal(config.globalHeaders["X-Content-Type-Options"], "nosniff");
+});

@@ -1,119 +1,102 @@
-# Handoff — independent verification result
+# Handoff — release-blocking QA repair
 
-## Status: FAIL
+## Status: PASS
 
-Candidate `46499c05e6d74e33affa789d1dd2aca810d5024a` was independently checked
-against https://photo-edit-portability-map.sociobot.in on 2026-08-28. The live
-deployment matches the candidate for the checked generated files, but it must
-not be released as a read-only migration tool.
+The independent findings against candidate
+`46499c05e6d74e33affa789d1dd2aca810d5024a` were repaired on 2026-08-28 and
+deployed to https://photo-edit-portability-map.sociobot.in.
 
-The production CLI exits 0 and overwrites a valid input `.lrcat` when the same
-path is passed to `--catalog` and `--report`. It also permits a report inside a
-symlinked source library. This is a **critical** violation of the required
-read-only catalog/source boundary. See `.factory/verification.md` for the
-exact commands, SHA-256 evidence, and required regression coverage.
+## Repairs
 
-The independent clean-clone checks otherwise passed: `npm ci`, `npm test`
-(9 Rust + 3 Node + 10 Playwright checks), `cargo fmt --check`,
-`cargo clippy --all-targets -- -D warnings`, `cargo package --allow-dirty`,
-and `npm run build`. The packed crate also installed into a clean consumer and
-its documented public CLI surface worked. Desktop/mobile accessibility,
-keyboard, reduced motion, privacy/outbound requests, live offline reload,
-bundle budgets, and candidate/live byte parity passed.
+- V-1 (critical): all source, target, catalog, human-report, and JSON-report
+  paths are resolved before scanning. Prospective outputs resolve their deepest
+  existing ancestor, including symlinks, and normalize the missing suffix.
+  Reports are refused if they resolve inside source/target or alias the catalog;
+  existing hard-link aliases are also detected. Canonically identical source
+  and target folders are refused. Safety failures exit `2` before a scan or
+  write.
+- Exact regressions invoke the compiled CLI with (1) a valid SQLite
+  `Adobe_images` catalog also supplied as `--report`, asserting the original
+  bytes and readable row survive, and (2) `--source` through a symlink with a
+  report beneath a not-yet-created child, asserting no report is created.
+- V-2 (moderate): `staticwebapp.config.json` now applies
+  `Cache-Control: public, max-age=31536000, immutable` to `/assets/*`. A Node
+  contract test pins the cache and security-header configuration. The same
+  config supplies the product CSP as an HTTP response header.
+- README and CHANGELOG document the enforced output boundary. The researched
+  brief, visual thesis, CLI surface, report schema, free/Pro split, and all
+  previously passing behavior are unchanged.
 
-One moderate deployment gap remains: hashed CSS/JS are served with
-`Cache-Control: public, must-revalidate, max-age=30`, not long-lived immutable
-caching required for static hashed assets.
+Repair commits:
 
-## Required next steps
+- `80770da` — protect canonical scan inputs from report writes
+- `cef9468` — cache fingerprinted site assets immutably
 
-1. Block report and JSON-report paths that alias catalog, source, or target,
-   resolving symlinks/parents before any write; add the two regression tests.
-2. Configure immutable long-lived caching for hashed assets.
-3. Re-run the verification record's critical reproductions and the clean
-   quality gates before release.
+## Verification evidence
 
----
-
-# Builder handoff (superseded by the independent FAIL above)
-
-## What shipped
-
-- A single-binary Rust CLI with helpful `--help`, stable `--json`, human
-  reports, explicit exit codes, and report-file output.
-- Read-only/query-only Lightroom SQLite inventory. Schema names are inspected
-  rather than tied to a single catalog version; categories include ratings,
-  flags, labels, dates, keywords, captions, location, people, collections,
-  stacks, virtual copies, develop recipes, and develop history.
-- XMP XML inspection with malformed/unreadable sidecars reported as warnings.
-  Image files are listed by path only; their binary contents are never opened.
-- Source/target matching by exact relative path, then by an unambiguous
-  relative stem. RAW+JPEG pairs remain separate source assets.
-- Capability profiles for Immich, darktable, digiKam, and a conservative
-  generic-folder workflow; a prioritized migration checklist and deterministic
-  verification sample are produced on every scan.
-- Free scans, safety output, and JSON export. The $19 one-time Pro unlock gates
-  only samples from 11–100 items, with Sociobot verification, daily local
-  caching, offline optimistic behavior after a valid check, CLI activation,
-  checkout-return capture, and paste-to-restore on the site.
-- A responsive Vite landing/docs site with a recorded interactive report,
-  original luminous-glass imagery, offline shell caching, `/privacy/` and
-  `/terms/`, no analytics, no remote fonts, and no third-party runtime scripts.
-
-## Build and verify
-
-From a clean clone:
+Run from `/work/repo`:
 
 ```sh
-npm install
+npm ci
 npm test
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
 npm run build
 cargo package --allow-dirty
 ```
 
-- `npm test`: 9 Rust unit/integration tests, 3 Node contract tests, and 10
-  Playwright tests across desktop Chromium and a 390 × 844 mobile Chromium
-  viewport. Axe found zero serious or critical findings. Keyboard, offline,
-  target switching, legal routes, and mocked license-return paths pass.
-- `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`: pass.
-- `npm audit --audit-level=high`: 0 vulnerabilities.
-- `npm run build`: pass; optimized CLI at
-  `target/release/edit-portability-map`, deploy root at `dist/site/`, with
-  `dist/site/index.html` present.
-- `cargo package --allow-dirty`: package verifies from its generated archive.
-  Publishing is intentionally left to the factory.
-- Lighthouse 12.8.2, mobile emulation against the production build:
-  Performance 100, Accessibility 100, Best Practices 100, SEO 100; LCP 1.5 s,
-  TBT 0 ms, CLS 0, Speed Index 0.9 s.
-- Initial payload: 6.31 KB JS / 13.33 KB CSS uncompressed; responsive hero is
-  28 KB at 720 px and 86 KB at 1440 px. No font payload.
+Results:
 
-## Original asset provenance
+- Clean `npm ci`: 22 packages audited, 0 vulnerabilities.
+- `npm test`: 6 Rust unit tests, 5 Rust CLI integration tests, 4 Node contract
+  tests, and 10 Playwright tests passed. Playwright covers desktop Chromium and
+  390 × 844 mobile Chromium, axe, keyboard operation, reduced/offline state,
+  license return, target switching, and legal routes.
+- `cargo fmt --check` and warnings-as-errors Clippy passed.
+- `npm run build` produced `target/release/edit-portability-map` and
+  `dist/site/`; initial assets remain 6.31 KB JS and 13.33 KB CSS uncompressed,
+  with no font payload. The mobile hero remains 24.7 KB.
+- `cargo package --allow-dirty` produced
+  `target/package/edit-portability-map-0.1.0.crate` (25.8 KB). The archive was
+  unpacked into a separate temporary consumer, installed with
+  `cargo install --path ... --root ... --offline`, and its `--version`,
+  `license status`, and free JSON scan succeeded (`schema_version` 1.0,
+  `matched_assets` 1). Publishing was intentionally not performed.
+- The factory `verify-url.sh` passed locally and live: HTTP 200, expected title,
+  `lang=en`, one `h1`, one `main`, no missing image alt, no unlabeled buttons,
+  and no browser errors.
+- A separate live browser pass at desktop and 390 × 844 found zero
+  serious/critical axe issues, zero console/page errors, no horizontal
+  overflow, visible and working skip-link/main keyboard focus, reduced-motion
+  duration `0.01ms`, no third-party requests on normal load, and a successful
+  offline reload after service-worker activation.
+- Live Lighthouse 12.8.2 mobile: Performance 100, Accessibility 100, Best
+  Practices 100, SEO 100; LCP 1.2 s, TBT 30 ms, CLS 0, Speed Index 0.9 s.
+- Live response policy: root returns HSTS, `nosniff`, strict referrer policy,
+  and the restrictive CSP header. Fingerprinted JS and CSS return the required
+  one-year immutable cache header.
+- Live identity: SHA-256 parity passed for generated `index.html`, JS, and CSS
+  (`1632f025...db61`, `033e52c3...e9a9`, `272b9746...7a5`). Privacy and terms
+  remain directly available; normal page load sends no analytics or external
+  runtime requests.
 
-The hero was generated once through `/opt/fleet/lib/gen-image.sh` using the
-`factory-image` deployment, visually inspected, resized, and WebP-compressed.
-The final prompt, palette, design rationale, and licensing note are recorded in
-`.factory/design.md`. The favicon is an original hand-authored SVG mark.
+## Deployment
 
-## Known gaps and honest limits
+Built with `npm run build` and deployed from `dist/site/` through the work
+order's Azure Static Web Apps factory deployment. Production returned HTTP 200
+at https://photo-edit-portability-map.sociobot.in immediately after upload,
+and the custom domain reported `Ready` with managed TLS.
 
-- Lightroom catalog schemas vary by release. The scanner recognizes common
-  table/column families and warns when core tables are absent, but a newly
-  renamed proprietary field may require a future mapping update.
-- Embedded EXIF/orientation are reported as expected container state rather
-  than parsed, because the product intentionally does not read image binary
-  data. XMP and catalog observations are exact counts where readable.
-- Target capability profiles are conservative snapshots, not a guarantee;
-  installed versions and import settings remain the final authority.
-- Lightroom develop recipes/history cannot be faithfully converted. The tool
-  explicitly recommends rendering critical finals and preserving the catalog.
-- The factory still needs to register the paid product/return URL and produce
-  signed cross-platform release binaries. License behavior is covered with a
-  mocked API response; a live purchase cannot be exercised before registration.
+## Known limits and next steps
 
-## Suggested next steps
-
-1. Register `photo-edit-portability-map` with the Sociobot billing API and run
-   a staging checkout/restore test before release.
-2. Build and sign Linux, macOS, and Windows binaries from the verified crate.
-3. Add anonymized catalog-schema fixtures as new Lightroom versions appear.
+- Lightroom catalog schemas vary by release; the scanner recognizes common
+  table/column families and warns on unfamiliar schemas.
+- Embedded image metadata is reported as expected container state because the
+  privacy boundary intentionally excludes reading image pixels/binaries.
+- Proprietary Lightroom develop recipes/history cannot be faithfully
+  converted; the report continues to require rendered finals and catalog
+  preservation.
+- The factory still owns registry publication, signed cross-platform release
+  binaries, and live billing registration/checkout validation. The crate is
+  ready for publication with `cargo publish` after factory review; no registry
+  credential or direct payment provider was used here.

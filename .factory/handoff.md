@@ -54,3 +54,12 @@ No financial purchase/refund was created. Checkout redirect, token return,
 restore/revocation handling, CORS, and verification cache policy were tested
 without a charge. The CLI intentionally inventories rather than translates
 proprietary RAW development recipes.
+# Review 1 handoff — 2026-08-28
+
+This review added `.factory/review-1.md` only; product source was not modified.
+
+The review verdict is **FAIL**. It records blocking gaps in the CLI sample-data demo, claim registry/testing, first-screen action clarity, and demo/404 routing. It also records copy, metadata, and shared-layout findings.
+
+Verification performed: fresh live Chromium contexts at 390 px and desktop; direct route/link checks; fresh-clone `npm ci`, `npm test`, and `npm run build` (all passed); direct CLI probes for `--demo` and `demo` (both exit 2).
+
+No product-code changes, deployment changes, secrets, or external configuration changes were made.

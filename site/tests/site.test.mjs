@@ -15,11 +15,14 @@ test("landing page has the required semantic shell", async () => {
 });
 
 test("paid unlock follows the Sociobot storage and verification contract", async () => {
+  const html = await read("../index.html");
   const script = await read("../src/app.js");
+  assert.match(html, /href="https:\/\/api\.sociobot\.in\/api\/v1\/products\/photo-edit-portability-map\/checkout"/);
   assert.match(script, /sb_license:/);
   assert.match(script, /\/verify\?license=/);
   assert.match(script, /history\.replaceState/);
   assert.match(script, /86_400_000/);
+  assert.match(script, /cached\?\.token === token/);
 });
 
 test("motion and focus have explicit accessible treatments", async () => {

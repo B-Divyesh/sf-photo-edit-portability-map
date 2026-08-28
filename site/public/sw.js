@@ -1,4 +1,4 @@
-const CACHE = "edit-portability-map-v1";
+const CACHE = "edit-portability-map-v2";
 const SHELL = ["/", "/privacy/", "/terms/", "/portability-landscape-720.webp", "/portability-landscape.webp", "/favicon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL))));

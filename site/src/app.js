@@ -92,17 +92,18 @@ function cachedVerdict() {
 
 async function verifyLicense(token, force = false) {
   const cached = cachedVerdict();
-  if (!force && cached?.valid && Date.now() - cached.checkedAt < DAY) {
+  const cachedForToken = cached?.token === token ? cached : null;
+  if (!force && cachedForToken?.valid && Date.now() - cachedForToken.checkedAt < DAY) {
     setLicenseStatus("Pro active. License was verified within the last day.", "active");
     return;
   }
-  if (cached?.valid) setLicenseStatus("Pro active. Rechecking quietly…", "active");
+  if (cachedForToken?.valid) setLicenseStatus("Pro active. Rechecking quietly…", "active");
   else setLicenseStatus("Checking this license…");
   try {
     const response = await fetch(`${API}/verify?license=${encodeURIComponent(token)}`, { headers: { accept: "application/json" } });
     if (!response.ok) throw new Error("verification service unavailable");
     const result = await response.json();
-    localStorage.setItem(VERDICT_KEY, JSON.stringify({ valid: result.valid === true, checkedAt: Date.now() }));
+    localStorage.setItem(VERDICT_KEY, JSON.stringify({ token, valid: result.valid === true, checkedAt: Date.now() }));
     if (result.valid === true) {
       setLicenseStatus("Pro active. Verification samples up to 100 files are unlocked.", "active");
       showToast("License verified. Pro is active.");
@@ -110,7 +111,7 @@ async function verifyLicense(token, force = false) {
       setLicenseStatus("This license is no longer active. Check the token or purchase a new license.", "error");
     }
   } catch {
-    if (cached?.valid) setLicenseStatus("Pro active from the last verified check. Offline recheck postponed.", "active");
+    if (cachedForToken?.valid) setLicenseStatus("Pro active from the last verified check. Offline recheck postponed.", "active");
     else setLicenseStatus("License verification is unavailable. Your free tools still work; reconnect and try again.", "error");
   }
 }
@@ -164,7 +165,7 @@ updateConnection();
 const license = acceptReturnLicense();
 if (license) {
   const cached = cachedVerdict();
-  if (cached?.valid) setLicenseStatus("Pro active from your last verified check.", "active");
+  if (cached?.token === license && cached.valid) setLicenseStatus("Pro active from your last verified check.", "active");
   verifyLicense(license);
 }
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js");

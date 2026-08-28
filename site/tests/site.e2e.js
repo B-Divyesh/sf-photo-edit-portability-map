@@ -29,6 +29,39 @@ test("keyboard path reaches the primary command", async ({ page }) => {
   await expect(page.getByRole("status").filter({ hasText: "Command copied" })).toBeVisible();
 });
 
+test("mobile hero content fits and every visible link has a 44px touch target", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "390px regression");
+  await page.goto("/");
+  const heroMetrics = await page.locator(".hero").evaluate((hero) => {
+    const box = hero.getBoundingClientRect();
+    const descendants = [...hero.querySelectorAll(".hero-copy, .command-bar, .hero-actions a")];
+    return {
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      heroLeft: box.left,
+      heroRight: box.right,
+      descendants: descendants.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { className: element.className, left: rect.left, right: rect.right };
+      })
+    };
+  });
+  expect(heroMetrics.viewportWidth).toBe(390);
+  expect(heroMetrics.documentWidth).toBe(390);
+  for (const item of heroMetrics.descendants) {
+    expect(item.left, item.className).toBeGreaterThanOrEqual(heroMetrics.heroLeft);
+    expect(item.right, item.className).toBeLessThanOrEqual(heroMetrics.heroRight);
+  }
+
+  const undersizedLinks = await page.locator("a:visible").evaluateAll((links) => links
+    .map((link) => {
+      const rect = link.getBoundingClientRect();
+      return { text: link.textContent.trim(), width: rect.width, height: rect.height };
+    })
+    .filter(({ width, height }) => width < 44 || height < 44));
+  expect(undersizedLinks).toEqual([]);
+});
+
 test("profile switching and offline state remain understandable", async ({ page, context }) => {
   await page.goto("/");
   await page.getByLabel("Target profile").selectOption("darktable");
@@ -49,6 +82,32 @@ test("checkout return stores and strips a license, then exposes CLI activation",
   await expect(page.getByRole("button", { name: "Copy CLI activation command" })).toBeVisible();
   const stored = await page.evaluate(() => localStorage.getItem("sb_license:photo-edit-portability-map"));
   expect(stored).toBe("valid_test_token_12345");
+});
+
+test("restore and revocation replace a stale valid verdict without blocking free tools", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("sb_license:photo-edit-portability-map", "previous_valid_token");
+    localStorage.setItem("sb_license:photo-edit-portability-map:verdict", JSON.stringify({
+      token: "previous_valid_token",
+      valid: true,
+      checkedAt: Date.now()
+    }));
+  });
+  await page.route("https://api.sociobot.in/**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ valid: false, reason: "revoked", expires_at: null })
+  }));
+  await page.goto("/?license=revoked_test_token_12345#license");
+  await expect(page).toHaveURL(/\/#license$/);
+  await expect(page.locator("#license-status")).toContainText("no longer active");
+  await expect(page.getByRole("link", { name: "Run your pre-flight" })).toBeVisible();
+  const stored = await page.evaluate(() => ({
+    token: localStorage.getItem("sb_license:photo-edit-portability-map"),
+    verdict: JSON.parse(localStorage.getItem("sb_license:photo-edit-portability-map:verdict"))
+  }));
+  expect(stored.token).toBe("revoked_test_token_12345");
+  expect(stored.verdict).toMatchObject({ token: "revoked_test_token_12345", valid: false });
 });
 
 test("privacy and terms pages are direct and semantic", async ({ page }) => {

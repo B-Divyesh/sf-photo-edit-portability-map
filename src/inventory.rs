@@ -29,12 +29,15 @@ pub fn scan(options: &ScanOptions) -> Result<Report> {
     validate(options)?;
     let source_files = walk_library(&options.source)?;
     let target_files = walk_library(&options.target)?;
-    let xmp_paths: Vec<PathBuf> = source_files
+    let discovered_xmp_paths: Vec<PathBuf> = source_files
         .all_files
         .iter()
         .filter(|path| extension_lower(path).as_deref() == Some("xmp"))
         .cloned()
         .collect();
+    let source_assets = asset_list(&source_files.images, &options.source);
+    let (xmp_paths, orphan_xmp_warnings) =
+        adjacent_xmp_paths(&discovered_xmp_paths, &source_assets, &options.source);
     let xmp = xmp::inspect(&xmp_paths, &options.source)?;
     let catalog = options
         .catalog
@@ -42,20 +45,27 @@ pub fn scan(options: &ScanOptions) -> Result<Report> {
         .map(catalog::inspect)
         .transpose()?;
 
-    let source_assets = asset_list(&source_files.images, &options.source);
     let target_assets = asset_list(&target_files.images, &options.target);
-    let matches = match_assets(&source_assets, &target_assets);
-    let matched_assets = matches.values().filter(|item| item.is_some()).count();
+    let match_result = match_assets(&source_assets, &target_assets);
+    let matched_assets = match_result
+        .matches
+        .values()
+        .filter(|item| item.is_some())
+        .count();
 
     let mut warnings = source_files.warnings;
     warnings.extend(target_files.warnings);
+    warnings.extend(orphan_xmp_warnings);
+    warnings.extend(match_result.warnings);
     warnings.extend(
         xmp.malformed
             .iter()
             .map(|item| format!("Skipped malformed XMP {item}")),
     );
     if xmp.sidecars == 0 {
-        warnings.push("No XMP sidecars found; catalog-only risk may be understated.".to_owned());
+        warnings.push(
+            "No adjacent XMP sidecars found; catalog-only risk may be understated.".to_owned(),
+        );
     }
     if let Some(catalog) = &catalog {
         if !catalog.recognized {
@@ -96,7 +106,7 @@ pub fn scan(options: &ScanOptions) -> Result<Report> {
         target_unsupported_fields,
     };
     let checklist = build_checklist(&summary, &categories, &warnings, options.target_app);
-    let verification_sample = build_sample(&matches, options.sample_size, &categories);
+    let verification_sample = build_sample(&match_result.matches, options.sample_size, &categories);
 
     Ok(Report {
         schema_version: "1.0".to_owned(),
@@ -206,45 +216,146 @@ fn normalized_path(path: &Path) -> String {
         .join("/")
 }
 
-fn match_assets(sources: &[Asset], targets: &[Asset]) -> BTreeMap<String, Option<String>> {
-    let mut by_relative = BTreeMap::new();
-    let mut by_stem: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    let mut by_file_stem: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    let mut source_file_stems: BTreeMap<&str, usize> = BTreeMap::new();
-    for asset in sources {
-        *source_file_stems.entry(&asset.file_stem).or_default() += 1;
+fn adjacent_xmp_paths(
+    paths: &[PathBuf],
+    sources: &[Asset],
+    root: &Path,
+) -> (Vec<PathBuf>, Vec<String>) {
+    let source_stems: BTreeSet<&str> = sources.iter().map(|asset| asset.stem.as_str()).collect();
+    let mut adjacent = Vec::new();
+    let mut warnings = Vec::new();
+
+    for path in paths {
+        let relative = path.strip_prefix(root).unwrap_or(path);
+        let mut without_extension = relative.to_path_buf();
+        without_extension.set_extension("");
+        let stem = normalized_path(&without_extension).to_ascii_lowercase();
+        if source_stems.contains(stem.as_str()) {
+            adjacent.push(path.clone());
+        } else {
+            warnings.push(format!(
+                "Ignored orphan XMP {} because no adjacent source image has the same relative path and stem.",
+                normalized_path(relative)
+            ));
+        }
     }
-    for asset in targets {
-        by_relative.insert(asset.relative.to_ascii_lowercase(), asset.relative.as_str());
-        by_stem
-            .entry(&asset.stem)
-            .or_default()
-            .push(&asset.relative);
-        by_file_stem
-            .entry(&asset.file_stem)
-            .or_default()
-            .push(&asset.relative);
+
+    (adjacent, warnings)
+}
+
+struct MatchResult {
+    matches: BTreeMap<String, Option<String>>,
+    warnings: Vec<String>,
+}
+
+fn match_assets(sources: &[Asset], targets: &[Asset]) -> MatchResult {
+    let mut assigned = vec![None; sources.len()];
+    let mut reserved = BTreeSet::new();
+
+    // Preserve literal relative-path matches first, then case-normalized exact matches.
+    // This keeps a same-extension target with its true source before considering RAW/JPEG
+    // or renamed-extension fallbacks.
+    for case_sensitive in [true, false] {
+        for (source_index, source) in sources.iter().enumerate() {
+            if assigned[source_index].is_some() {
+                continue;
+            }
+            let candidates: Vec<usize> = targets
+                .iter()
+                .enumerate()
+                .filter(|(target_index, target)| {
+                    !reserved.contains(target_index)
+                        && if case_sensitive {
+                            target.relative == source.relative
+                        } else {
+                            target.relative.eq_ignore_ascii_case(&source.relative)
+                        }
+                })
+                .map(|(index, _)| index)
+                .collect();
+            if candidates.len() == 1 {
+                assigned[source_index] = Some(candidates[0]);
+                reserved.insert(candidates[0]);
+            }
+        }
     }
-    sources
-        .iter()
-        .map(|source| {
-            let exact = by_relative
-                .get(&source.relative.to_ascii_lowercase())
-                .map(|value| (*value).to_owned());
-            let fallback = by_stem
-                .get(source.stem.as_str())
-                .and_then(|items| (items.len() == 1).then(|| items[0].to_owned()));
-            let unique_name_fallback = (source_file_stems.get(source.file_stem.as_str())
-                == Some(&1))
-            .then(|| by_file_stem.get(source.file_stem.as_str()))
-            .flatten()
-            .and_then(|items| (items.len() == 1).then(|| items[0].to_owned()));
-            (
-                source.relative.clone(),
-                exact.or(fallback).or(unique_name_fallback),
-            )
-        })
-        .collect()
+
+    assign_unique_groups(sources, targets, &mut assigned, &mut reserved, |asset| {
+        asset.stem.as_str()
+    });
+    assign_unique_groups(sources, targets, &mut assigned, &mut reserved, |asset| {
+        asset.file_stem.as_str()
+    });
+
+    let mut warnings = BTreeSet::new();
+    for (source_index, source) in sources.iter().enumerate() {
+        if assigned[source_index].is_some() {
+            continue;
+        }
+        let same_stem: Vec<(usize, &Asset)> = targets
+            .iter()
+            .enumerate()
+            .filter(|(_, target)| target.stem == source.stem)
+            .collect();
+        if !same_stem.is_empty() && same_stem.iter().all(|(index, _)| reserved.contains(index)) {
+            warnings.insert(format!(
+                "Kept source {} unmatched because its same-stem target is already reserved for another source; targets are never reused.",
+                source.relative
+            ));
+        } else if !same_stem.is_empty() {
+            warnings.insert(format!(
+                "Kept source {} unmatched because its relative-stem match is ambiguous; targets are never guessed or reused.",
+                source.relative
+            ));
+        }
+    }
+
+    MatchResult {
+        matches: sources
+            .iter()
+            .enumerate()
+            .map(|(source_index, source)| {
+                (
+                    source.relative.clone(),
+                    assigned[source_index]
+                        .map(|target_index| targets[target_index].relative.clone()),
+                )
+            })
+            .collect(),
+        warnings: warnings.into_iter().collect(),
+    }
+}
+
+fn assign_unique_groups<'a, F>(
+    sources: &'a [Asset],
+    targets: &'a [Asset],
+    assigned: &mut [Option<usize>],
+    reserved: &mut BTreeSet<usize>,
+    key: F,
+) where
+    F: Fn(&'a Asset) -> &'a str,
+{
+    let mut source_groups: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+    let mut target_groups: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+    for (index, source) in sources.iter().enumerate() {
+        if assigned[index].is_none() {
+            source_groups.entry(key(source)).or_default().push(index);
+        }
+    }
+    for (index, target) in targets.iter().enumerate() {
+        if !reserved.contains(&index) {
+            target_groups.entry(key(target)).or_default().push(index);
+        }
+    }
+    for (group_key, source_indices) in source_groups {
+        let Some(target_indices) = target_groups.get(group_key) else {
+            continue;
+        };
+        if source_indices.len() == 1 && target_indices.len() == 1 {
+            assigned[source_indices[0]] = Some(target_indices[0]);
+            reserved.insert(target_indices[0]);
+        }
+    }
 }
 
 fn build_categories(

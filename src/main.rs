@@ -92,6 +92,9 @@ fn run() -> Result<u8> {
             sample_size,
             fail_on_blockers,
         } => {
+            if sample_size > 100 {
+                bail!("sample size cannot exceed 100");
+            }
             if sample_size > 10 {
                 license::require_pro()?;
             }

@@ -71,6 +71,8 @@ covered by integration tests.
 - **Embedded** — normally travels inside the photo container. The CLI reports
   this as an expected location without opening binary image data.
 - **Sidecar** — observed in an `.xmp` file next to a source asset.
+  Adjacency is matched by case-normalized relative path and stem; relocated or
+  orphan XMP files are warned about and cannot mask catalog-only state.
 - **Catalog-only** — observed in Lightroom tables without equivalent sampled
   sidecar coverage. If a field appears in more populated catalog rows than XMP
   sidecars, the uncovered difference is conservatively reported here; export,
@@ -79,7 +81,9 @@ covered by integration tests.
   source representation. It is a capability warning, not a conversion error.
 
 The generated checklist is intentionally conservative. Verify the sample in
-the actual destination before deleting or cancelling anything.
+the actual destination before deleting or cancelling anything. Target matching
+is one-to-one: exact relative paths are reserved first, then only unambiguous
+relative-stem or unique-name fallbacks are used.
 
 ## Pro unlock
 

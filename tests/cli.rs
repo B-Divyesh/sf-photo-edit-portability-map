@@ -95,6 +95,161 @@ fn mixed_catalog_and_xmp_coverage_is_a_catalog_only_blocker() {
 }
 
 #[test]
+fn orphan_xmp_cannot_hide_catalog_only_metadata() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("source");
+    let target = temp.path().join("target");
+    fs::create_dir_all(&source).unwrap();
+    fs::create_dir_all(&target).unwrap();
+    for name in ["A", "B"] {
+        fs::write(source.join(format!("{name}.CR3")), b"not opened").unwrap();
+        fs::write(target.join(format!("{name}.jpg")), b"not opened").unwrap();
+    }
+    fs::write(
+        source.join("orphan.xmp"),
+        r#"<x:xmpmeta xmlns:x="x" xmlns:xmp="x"><rdf:RDF xmlns:rdf="r"><rdf:Description xmp:Rating="5" /></rdf:RDF></x:xmpmeta>"#,
+    )
+    .unwrap();
+    let catalog = temp.path().join("library.lrcat");
+    let connection = rusqlite::Connection::open(&catalog).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE Adobe_images (id INTEGER PRIMARY KEY, rating INTEGER);\
+             INSERT INTO Adobe_images (rating) VALUES (5);",
+        )
+        .unwrap();
+    drop(connection);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--catalog",
+            catalog.to_str().unwrap(),
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--json",
+            "--fail-on-blockers",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(3));
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["summary"]["xmp_sidecars"], 0);
+    assert_eq!(report["summary"]["catalog_only_fields"], 1);
+    let rating = report["categories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["field"] == "rating")
+        .unwrap();
+    assert_eq!(rating["location"], "catalog_only");
+    assert_eq!(rating["records"], 1);
+    assert!(report["warnings"].as_array().unwrap().iter().any(|item| {
+        item.as_str()
+            .unwrap()
+            .contains("Ignored orphan XMP orphan.xmp")
+    }));
+}
+
+#[test]
+fn xmp_association_handles_case_pairs_and_relocated_orphans() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("source");
+    let target = temp.path().join("target");
+    fs::create_dir_all(source.join("Album")).unwrap();
+    fs::create_dir_all(source.join("Relocated")).unwrap();
+    fs::create_dir_all(&target).unwrap();
+    fs::write(source.join("Album/PHOTO.CR3"), b"not opened").unwrap();
+    fs::write(source.join("pair.CR3"), b"not opened").unwrap();
+    fs::write(source.join("pair.JPG"), b"paired image is a separate asset").unwrap();
+    let rating_xmp = r#"<x:xmpmeta xmlns:x="x" xmlns:xmp="x"><rdf:RDF xmlns:rdf="r"><rdf:Description xmp:Rating="5" /></rdf:RDF></x:xmpmeta>"#;
+    fs::write(source.join("Album/photo.XMP"), rating_xmp).unwrap();
+    fs::write(source.join("pair.xmp"), rating_xmp).unwrap();
+    fs::write(source.join("Relocated/PHOTO.xmp"), rating_xmp).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["summary"]["source_assets"], 3);
+    assert_eq!(report["summary"]["xmp_sidecars"], 2);
+    let rating = report["categories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["field"] == "rating")
+        .unwrap();
+    assert_eq!(rating["records"], 2);
+    assert!(report["warnings"].as_array().unwrap().iter().any(|item| {
+        item.as_str()
+            .unwrap()
+            .contains("Ignored orphan XMP Relocated/PHOTO.xmp")
+    }));
+}
+
+#[test]
+fn mixed_valid_and_orphan_xmp_only_offsets_valid_coverage() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("source");
+    let target = temp.path().join("target");
+    fs::create_dir_all(&source).unwrap();
+    fs::create_dir_all(&target).unwrap();
+    fs::write(source.join("valid.CR3"), b"not opened").unwrap();
+    fs::write(target.join("valid.jpg"), b"not opened").unwrap();
+    let rating_xmp = r#"<x:xmpmeta xmlns:x="x" xmlns:xmp="x"><rdf:RDF xmlns:rdf="r"><rdf:Description xmp:Rating="5" /></rdf:RDF></x:xmpmeta>"#;
+    fs::write(source.join("valid.xmp"), rating_xmp).unwrap();
+    fs::write(source.join("orphan.xmp"), rating_xmp).unwrap();
+    let catalog = temp.path().join("library.lrcat");
+    let connection = rusqlite::Connection::open(&catalog).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE Adobe_images (id INTEGER PRIMARY KEY, rating INTEGER);\
+             INSERT INTO Adobe_images (rating) VALUES (5), (4);",
+        )
+        .unwrap();
+    drop(connection);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--catalog",
+            catalog.to_str().unwrap(),
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--json",
+            "--fail-on-blockers",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["summary"]["xmp_sidecars"], 1);
+    let rating = report["categories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["field"] == "rating")
+        .unwrap();
+    assert_eq!(rating["location"], "catalog_only");
+    assert_eq!(rating["records"], 1);
+}
+
+#[test]
 fn unique_file_name_matches_a_safely_flattened_target() {
     let temp = tempdir().unwrap();
     let source = temp.path().join("source");
@@ -149,6 +304,60 @@ fn duplicate_file_names_do_not_use_the_flattened_fallback() {
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["summary"]["matched_assets"], 0);
     assert_eq!(report["summary"]["missing_assets"], 2);
+}
+
+#[test]
+fn paired_raw_and_jpeg_targets_are_assigned_one_to_one() {
+    for (target_names, matched, missing) in [
+        (&["photo.JPG"][..], 1, 1),
+        (&["photo.CR3"][..], 1, 1),
+        (&["photo.webp"][..], 0, 2),
+        (&["photo.CR3", "photo.JPG"][..], 2, 0),
+    ] {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let target = temp.path().join("target");
+        fs::create_dir_all(&source).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        fs::write(source.join("photo.CR3"), b"raw is a separate asset").unwrap();
+        fs::write(source.join("photo.JPG"), b"jpeg is a separate asset").unwrap();
+        for name in target_names {
+            fs::write(target.join(name), b"not opened").unwrap();
+        }
+
+        let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+            .args([
+                "scan",
+                "--source",
+                source.to_str().unwrap(),
+                "--target",
+                target.to_str().unwrap(),
+                "--json",
+                "--fail-on-blockers",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(if missing == 0 { 0 } else { 3 }));
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(report["summary"]["matched_assets"], matched);
+        assert_eq!(report["summary"]["missing_assets"], missing);
+        let assigned_targets: Vec<&str> = report["verification_sample"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|item| item["target"].as_str())
+            .collect();
+        let unique_targets: std::collections::BTreeSet<&str> =
+            assigned_targets.iter().copied().collect();
+        assert_eq!(assigned_targets.len(), unique_targets.len());
+        if missing > 0 && !target_names.is_empty() {
+            assert!(report["warnings"].as_array().unwrap().iter().any(|item| {
+                let warning = item.as_str().unwrap();
+                warning.contains("targets are never reused")
+                    || warning.contains("never guessed or reused")
+            }));
+        }
+    }
 }
 
 #[test]
@@ -228,6 +437,29 @@ fn pro_sized_sample_requires_a_license() {
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("Pro license is required"));
+}
+
+#[test]
+fn sample_size_above_hard_maximum_is_rejected_before_license_gate() {
+    let (_temp, source, target) = fixture();
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .env_remove("EDIT_PORTABILITY_MAP_LICENSE")
+        .env("XDG_CONFIG_HOME", _temp.path().join("empty-config"))
+        .args([
+            "scan",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--sample-size",
+            "101",
+        ])
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr.contains("sample size cannot exceed 100"));
+    assert!(!stderr.contains("Pro license"));
 }
 
 #[test]

@@ -12,6 +12,8 @@ test("landing page has the required semantic shell", async () => {
   assert.match(html, /alt="Translucent archive layers/);
   assert.match(html, /href="\/privacy\/"/);
   assert.match(html, /href="\/terms\/"/);
+  assert.match(html, /<code tabindex="0">cargo install --git https:\/\/github\.com\/B-Divyesh\/sf-photo-edit-portability-map<\/code>/);
+  assert.doesNotMatch(html, /--git github\.com/);
 });
 
 test("paid unlock follows the Sociobot storage and verification contract", async () => {
@@ -30,6 +32,7 @@ test("motion and focus have explicit accessible treatments", async () => {
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /min-height: 44px/);
+  assert.match(css, /nav a \{[^}]*min-width: 44px/);
 });
 
 test("deployment gives hashed assets immutable caching and a response CSP", async () => {

@@ -29,7 +29,7 @@ button, select, a.button { min-height: 44px; }
 .wordmark { display: inline-flex; min-height: 44px; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; letter-spacing: -.03em; }
 .wordmark-mark { display: inline-grid; place-items: center; width: 36px; height: 36px; color: var(--cyan); border: 1px solid var(--cyan); font-size: 13px; }
 nav { display: flex; gap: 28px; margin-left: auto; }
-nav a { display: inline-flex; min-height: 44px; align-items: center; color: var(--fog); text-decoration: none; font-size: 14px; }
+nav a { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; color: var(--fog); text-decoration: none; font-size: 14px; }
 nav a:hover { color: var(--mist); }
 .connection { display: flex; align-items: center; gap: 8px; color: var(--fog); font-size: 13px; }
 .connection span { width: 8px; height: 8px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 14px var(--cyan); }

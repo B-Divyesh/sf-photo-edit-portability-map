@@ -73,6 +73,20 @@ test("mobile hero content fits and every visible link has a 44px touch target", 
   expect(undersizedLinks).toEqual([]);
 });
 
+test("desktop navigation targets are at least 44 by 44 CSS pixels", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop navigation regression");
+  await page.goto("/");
+  const targets = await page.locator("nav a:visible").evaluateAll((links) => links.map((link) => {
+    const rect = link.getBoundingClientRect();
+    return { text: link.textContent.trim(), width: rect.width, height: rect.height };
+  }));
+  expect(targets.length).toBeGreaterThan(0);
+  for (const target of targets) {
+    expect(target.width, target.text).toBeGreaterThanOrEqual(44);
+    expect(target.height, target.text).toBeGreaterThanOrEqual(44);
+  }
+});
+
 test("profile switching and offline state remain understandable", async ({ page, context }) => {
   await page.goto("/");
   await page.getByLabel("Target profile").selectOption("darktable");
@@ -139,7 +153,7 @@ test("the deployed service worker updates its cache and serves the shell offline
   await page.reload();
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   const caches = await page.evaluate(() => window.caches.keys());
-  expect(caches).toContain("edit-portability-map-v2");
+  expect(caches).toContain("edit-portability-map-v3");
   await context.setOffline(true);
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.locator("h1")).toContainText("See what your edits are");

@@ -14,6 +14,13 @@ this project uses semantic versioning.
 
 ### Fixed
 
+- Ignore and warn about orphan or relocated XMP documents so they cannot hide
+  catalog-only metadata; case-variant adjacent sidecars remain supported.
+- Reserve target assets one-to-one, prioritizing exact matches before safe
+  stem fallbacks so paired RAW and JPEG sources cannot share one target.
+- Validate the 100-file hard sample limit before checking the optional Pro
+  license.
+- Correct the visible install URL and enforce 44 px desktop navigation targets.
 - Prevent report paths, including paths through symlinks or hard links, from
   overwriting the input catalog or writing inside scanned folders.
 - Serve fingerprinted site assets with a one-year immutable cache policy.

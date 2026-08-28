@@ -41,6 +41,157 @@ fn documented_json_scan_is_scriptable() {
 }
 
 #[test]
+fn mixed_catalog_and_xmp_coverage_is_a_catalog_only_blocker() {
+    let (temp, source, target) = fixture();
+    fs::write(source.join("second.CR3"), b"not opened").unwrap();
+    fs::write(target.join("second.jpg"), b"not opened").unwrap();
+    let catalog = temp.path().join("library.lrcat");
+    let connection = rusqlite::Connection::open(&catalog).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE Adobe_images (id INTEGER PRIMARY KEY, rating INTEGER);\
+             INSERT INTO Adobe_images (rating) VALUES (5), (4);",
+        )
+        .unwrap();
+    drop(connection);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--catalog",
+            catalog.to_str().unwrap(),
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--target-app",
+            "immich",
+            "--json",
+            "--fail-on-blockers",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(3));
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["summary"]["catalog_only_fields"], 1);
+    let rating = report["categories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["field"] == "rating")
+        .unwrap();
+    assert_eq!(rating["location"], "catalog_only");
+    assert_eq!(rating["records"], 1);
+    assert!(
+        rating["detail"]
+            .as_str()
+            .unwrap()
+            .contains("2 populated catalog record(s), 1 XMP sidecar(s)")
+    );
+    assert!(report["checklist"].as_array().unwrap().iter().any(|item| {
+        item["priority"] == "blocker" && item["task"].as_str().unwrap().contains("Star rating")
+    }));
+}
+
+#[test]
+fn unique_file_name_matches_a_safely_flattened_target() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("source");
+    let target = temp.path().join("target");
+    fs::create_dir_all(source.join("2024/Trip")).unwrap();
+    fs::create_dir_all(&target).unwrap();
+    fs::write(source.join("2024/Trip/DSC_0042.NEF"), b"not opened").unwrap();
+    fs::write(target.join("DSC_0042.jpg"), b"not opened").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["summary"]["matched_assets"], 1);
+    assert_eq!(report["summary"]["missing_assets"], 0);
+    assert_eq!(report["verification_sample"][0]["target"], "DSC_0042.jpg");
+}
+
+#[test]
+fn duplicate_file_names_do_not_use_the_flattened_fallback() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("source");
+    let target = temp.path().join("target");
+    fs::create_dir_all(source.join("one")).unwrap();
+    fs::create_dir_all(source.join("two")).unwrap();
+    fs::create_dir_all(&target).unwrap();
+    fs::write(source.join("one/DSC_0042.NEF"), b"not opened").unwrap();
+    fs::write(source.join("two/DSC_0042.NEF"), b"not opened").unwrap();
+    fs::write(target.join("DSC_0042.jpg"), b"not opened").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["summary"]["matched_assets"], 0);
+    assert_eq!(report["summary"]["missing_assets"], 2);
+}
+
+#[test]
+fn truncated_xmp_is_counted_but_warned_and_contributes_no_fields() {
+    let (_temp, source, target) = fixture();
+    fs::write(source.join("frame.xmp"), "<x:xmpmeta><unclosed>").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["summary"]["xmp_sidecars"], 1);
+    assert!(
+        report["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| {
+                warning
+                    .as_str()
+                    .unwrap()
+                    .contains("Skipped malformed XMP frame.xmp")
+                    && warning.as_str().unwrap().contains("unexpected end of file")
+            })
+    );
+    assert!(
+        report["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item["field"] != "rating")
+    );
+}
+
+#[test]
 fn blocker_mode_uses_exit_code_three() {
     let (_temp, source, target) = fixture();
     fs::remove_file(target.join("frame.webp")).unwrap();

@@ -47,15 +47,47 @@ fn fields_in_document(text: &str) -> Result<BTreeSet<String>> {
     let mut reader = Reader::from_str(text);
     reader.config_mut().trim_text(true);
     let mut fields = BTreeSet::new();
+    let mut open_elements = Vec::new();
+    let mut saw_root = false;
     loop {
         match reader.read_event() {
-            Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
+            Ok(Event::Start(event)) => {
                 classify_name(event.name().as_ref(), &mut fields);
                 for attribute in event.attributes().with_checks(false) {
                     let attribute = attribute.context("invalid XMP attribute")?;
                     classify_name(attribute.key.as_ref(), &mut fields);
                 }
+                saw_root = true;
+                open_elements.push(event.name().as_ref().to_vec());
             }
+            Ok(Event::Empty(event)) => {
+                classify_name(event.name().as_ref(), &mut fields);
+                for attribute in event.attributes().with_checks(false) {
+                    let attribute = attribute.context("invalid XMP attribute")?;
+                    classify_name(attribute.key.as_ref(), &mut fields);
+                }
+                saw_root = true;
+            }
+            Ok(Event::End(event)) => {
+                let expected = open_elements
+                    .pop()
+                    .context("malformed XML (unexpected closing element)")?;
+                if expected != event.name().as_ref() {
+                    anyhow::bail!(
+                        "malformed XML (expected closing element {}, found {})",
+                        String::from_utf8_lossy(&expected),
+                        String::from_utf8_lossy(event.name().as_ref())
+                    );
+                }
+            }
+            Ok(Event::Eof) if !open_elements.is_empty() => {
+                let element = open_elements.last().expect("checked non-empty");
+                anyhow::bail!(
+                    "malformed XML (unexpected end of file with {} still open)",
+                    String::from_utf8_lossy(element)
+                );
+            }
+            Ok(Event::Eof) if !saw_root => anyhow::bail!("malformed XML (no root element)"),
             Ok(Event::Eof) => break,
             Err(error) => anyhow::bail!("malformed XML ({error})"),
             _ => {}
@@ -110,5 +142,11 @@ mod tests {
         assert!(fields.contains("rating"));
         assert!(fields.contains("keywords"));
         assert!(!fields.contains("caption"));
+    }
+
+    #[test]
+    fn rejects_truncated_elements_at_end_of_file() {
+        let error = fields_in_document("<x:xmpmeta><unclosed>").unwrap_err();
+        assert!(error.to_string().contains("unexpected end of file"));
     }
 }

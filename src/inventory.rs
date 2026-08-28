@@ -179,6 +179,7 @@ fn extension_lower(path: &Path) -> Option<String> {
 #[derive(Debug)]
 struct Asset {
     stem: String,
+    file_stem: String,
     relative: String,
 }
 
@@ -191,6 +192,7 @@ fn asset_list(paths: &[PathBuf], root: &Path) -> Vec<Asset> {
             without_extension.set_extension("");
             Some(Asset {
                 stem: normalized_path(&without_extension).to_ascii_lowercase(),
+                file_stem: path.file_stem()?.to_string_lossy().to_ascii_lowercase(),
                 relative: normalized_path(relative),
             })
         })
@@ -207,10 +209,19 @@ fn normalized_path(path: &Path) -> String {
 fn match_assets(sources: &[Asset], targets: &[Asset]) -> BTreeMap<String, Option<String>> {
     let mut by_relative = BTreeMap::new();
     let mut by_stem: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut by_file_stem: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut source_file_stems: BTreeMap<&str, usize> = BTreeMap::new();
+    for asset in sources {
+        *source_file_stems.entry(&asset.file_stem).or_default() += 1;
+    }
     for asset in targets {
         by_relative.insert(asset.relative.to_ascii_lowercase(), asset.relative.as_str());
         by_stem
             .entry(&asset.stem)
+            .or_default()
+            .push(&asset.relative);
+        by_file_stem
+            .entry(&asset.file_stem)
             .or_default()
             .push(&asset.relative);
     }
@@ -223,7 +234,15 @@ fn match_assets(sources: &[Asset], targets: &[Asset]) -> BTreeMap<String, Option
             let fallback = by_stem
                 .get(source.stem.as_str())
                 .and_then(|items| (items.len() == 1).then(|| items[0].to_owned()));
-            (source.relative.clone(), exact.or(fallback))
+            let unique_name_fallback = (source_file_stems.get(source.file_stem.as_str())
+                == Some(&1))
+            .then(|| by_file_stem.get(source.file_stem.as_str()))
+            .flatten()
+            .and_then(|items| (items.len() == 1).then(|| items[0].to_owned()));
+            (
+                source.relative.clone(),
+                exact.or(fallback).or(unique_name_fallback),
+            )
         })
         .collect()
 }
@@ -268,10 +287,14 @@ fn build_categories(
                 && source_count > 0
             {
                 (Location::Embedded, source_count)
+            } else if catalog_count > xmp_count {
+                // Lightroom schemas vary and do not always expose a reliable path join.
+                // A larger populated catalog count therefore proves that some values are
+                // not represented by the observed XMP coverage. Report the difference as
+                // catalog-only rather than hiding it behind a category-wide sidecar label.
+                (Location::CatalogOnly, catalog_count - xmp_count)
             } else if xmp_count > 0 {
                 (Location::Sidecar, xmp_count)
-            } else if catalog_count > 0 {
-                (Location::CatalogOnly, catalog_count)
             } else {
                 return None;
             };
@@ -339,11 +362,15 @@ fn detail_for(field: &str, location: Location, xmp_count: usize, catalog_count: 
     let mut detail = match location {
         Location::Embedded => "Expected inside each image container.".to_owned(),
         Location::Sidecar => format!("Observed in {xmp_count} XMP sidecar(s)."),
+        Location::CatalogOnly if xmp_count > 0 => format!(
+            "At least {} catalog value(s) are not represented by XMP coverage: {catalog_count} populated catalog record(s), {xmp_count} XMP sidecar(s) with this field.",
+            catalog_count.saturating_sub(xmp_count)
+        ),
         Location::CatalogOnly => format!(
             "Observed in up to {catalog_count} catalog record(s), but not in any XMP sidecar."
         ),
     };
-    if xmp_count > 0 && catalog_count > 0 {
+    if location != Location::CatalogOnly && xmp_count > 0 && catalog_count > 0 {
         detail.push_str(&format!(
             " Also present in up to {catalog_count} catalog record(s)."
         ));
@@ -397,7 +424,8 @@ fn build_checklist(
                 "Export or record catalog-only state: {}.",
                 catalog_labels.join(", ")
             ),
-            why: "These values were found in the catalog but not in an XMP sidecar.".to_owned(),
+            why: "These catalog values are not represented by the observed XMP coverage."
+                .to_owned(),
         });
     }
     let unsupported: Vec<&str> = categories

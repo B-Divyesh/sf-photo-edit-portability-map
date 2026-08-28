@@ -71,8 +71,10 @@ covered by integration tests.
 - **Embedded** — normally travels inside the photo container. The CLI reports
   this as an expected location without opening binary image data.
 - **Sidecar** — observed in an `.xmp` file next to a source asset.
-- **Catalog-only** — observed in Lightroom tables but not in sampled sidecars;
-  export, render, or recreate it before leaving.
+- **Catalog-only** — observed in Lightroom tables without equivalent sampled
+  sidecar coverage. If a field appears in more populated catalog rows than XMP
+  sidecars, the uncovered difference is conservatively reported here; export,
+  render, or recreate it before leaving.
 - **Target-unsupported** — the selected profile cannot faithfully consume the
   source representation. It is a capability warning, not a conversion error.
 

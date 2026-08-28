@@ -1,102 +1,62 @@
-# Handoff — release-blocking QA repair
+# Handoff — independent verification 2
 
-## Status: PASS
+## Status: FAIL
 
-The independent findings against candidate
-`46499c05e6d74e33affa789d1dd2aca810d5024a` were repaired on 2026-08-28 and
-deployed to https://photo-edit-portability-map.sociobot.in.
+Candidate `9b9800345ba52e508baba05b1f608b2fa8d0dbb5` was independently verified on
+2026-08-28 against https://photo-edit-portability-map.sociobot.in from a clean
+checkout. The live static deployment matches the candidate, but the product is
+not ready to release.
 
-## Repairs
+Two high-severity blockers remain:
 
-- V-1 (critical): all source, target, catalog, human-report, and JSON-report
-  paths are resolved before scanning. Prospective outputs resolve their deepest
-  existing ancestor, including symlinks, and normalize the missing suffix.
-  Reports are refused if they resolve inside source/target or alias the catalog;
-  existing hard-link aliases are also detected. Canonically identical source
-  and target folders are refused. Safety failures exit `2` before a scan or
-  write.
-- Exact regressions invoke the compiled CLI with (1) a valid SQLite
-  `Adobe_images` catalog also supplied as `--report`, asserting the original
-  bytes and readable row survive, and (2) `--source` through a symlink with a
-  report beneath a not-yet-created child, asserting no report is created.
-- V-2 (moderate): `staticwebapp.config.json` now applies
-  `Cache-Control: public, max-age=31536000, immutable` to `/assets/*`. A Node
-  contract test pins the cache and security-header configuration. The same
-  config supplies the product CSP as an HTTP response header.
-- README and CHANGELOG document the enforced output boundary. The researched
-  brief, visual thesis, CLI surface, report schema, free/Pro split, and all
-  previously passing behavior are unchanged.
+1. Mixed catalog/XMP coverage is classified globally. In a two-photo fixture
+   with two catalog ratings and only one rating sidecar, the report returned
+   `catalog_only_fields: 0`, classified rating as `sidecar`, and omitted rating
+   from its export checklist. This can hide the exact locked-in state the core
+   job is meant to expose.
+2. The advertised live Pro checkout returns HTTP 404 with
+   `{"error":"enabled factory product","status":404}`. License verification is
+   live, but a buyer cannot start the $19 purchase.
 
-Repair commits:
+Moderate defects also remain in unique-file-name matching, truncated-XMP
+validation, and the clipped 600 px hero layout at a 390 px viewport. Several
+plain mobile links miss the required 44 px touch-target baseline. Full
+reproductions and severity rationale are in `.factory/verification-2.md`.
 
-- `80770da` — protect canonical scan inputs from report writes
-- `cef9468` — cache fingerprinted site assets immutably
+## What passed
 
-## Verification evidence
+- Clean `npm ci`, `npm test`, `cargo fmt --check`, warnings-as-errors Clippy,
+  `npm audit --audit-level=high`, the exact `npm run build`, and
+  `cargo package --allow-dirty` all passed.
+- Test totals: 6 Rust unit, 5 CLI integration, 4 Node contract, and 10
+  Playwright scenarios. The clean packed-crate consumer installed offline and
+  exercised version/help, license status, and a JSON scan successfully.
+- The former critical overwrite flaw is repaired: direct catalog aliases,
+  hard links, source symlinks, and target-contained outputs all exit 2 before a
+  write; the catalog remained readable and unchanged.
+- Live/local SHA-256 parity passed for the document, legal pages, service
+  worker, manifest, images, favicon, and hashed JS/CSS.
+- Desktop and 390 px mobile had zero Axe findings, zero normal-load console or
+  page errors, working keyboard/focus/reduced-motion behavior, and no normal
+  third-party requests. Offline reload passed after service-worker update.
+- Security/CSP and immutable asset-cache response headers are live.
+- Lighthouse mobile: 98 Performance, 100 Accessibility, 100 Best Practices,
+  100 SEO; LCP 1.2 s, TBT 180 ms, CLS 0.
+- JS is 6,314 B, CSS 13,334 B, the mobile hero is 24,670 B, and there are no
+  web-font downloads.
 
-Run from `/work/repo`:
+## Required next steps
 
-```sh
-npm ci
-npm test
-cargo fmt --check
-cargo clippy --all-targets -- -D warnings
-npm run build
-cargo package --allow-dirty
-```
+1. Report per-asset or conservatively uncovered catalog state whenever catalog
+   population exceeds matching XMP coverage; add mixed-coverage fixtures.
+2. Enable the product in the live Sociobot billing engine and verify the full
+   checkout/return/restore/revocation path.
+3. Implement the documented unambiguous unique-name target fallback and reject
+   ambiguous duplicates.
+4. Reject/warn on truncated, unbalanced XMP.
+5. Fix the 390 px hero shrink behavior and all sub-44 px touch targets.
+6. Re-run independent verification against a new candidate and deployed URL.
 
-Results:
-
-- Clean `npm ci`: 22 packages audited, 0 vulnerabilities.
-- `npm test`: 6 Rust unit tests, 5 Rust CLI integration tests, 4 Node contract
-  tests, and 10 Playwright tests passed. Playwright covers desktop Chromium and
-  390 × 844 mobile Chromium, axe, keyboard operation, reduced/offline state,
-  license return, target switching, and legal routes.
-- `cargo fmt --check` and warnings-as-errors Clippy passed.
-- `npm run build` produced `target/release/edit-portability-map` and
-  `dist/site/`; initial assets remain 6.31 KB JS and 13.33 KB CSS uncompressed,
-  with no font payload. The mobile hero remains 24.7 KB.
-- `cargo package --allow-dirty` produced
-  `target/package/edit-portability-map-0.1.0.crate` (25.8 KB). The archive was
-  unpacked into a separate temporary consumer, installed with
-  `cargo install --path ... --root ... --offline`, and its `--version`,
-  `license status`, and free JSON scan succeeded (`schema_version` 1.0,
-  `matched_assets` 1). Publishing was intentionally not performed.
-- The factory `verify-url.sh` passed locally and live: HTTP 200, expected title,
-  `lang=en`, one `h1`, one `main`, no missing image alt, no unlabeled buttons,
-  and no browser errors.
-- A separate live browser pass at desktop and 390 × 844 found zero
-  serious/critical axe issues, zero console/page errors, no horizontal
-  overflow, visible and working skip-link/main keyboard focus, reduced-motion
-  duration `0.01ms`, no third-party requests on normal load, and a successful
-  offline reload after service-worker activation.
-- Live Lighthouse 12.8.2 mobile: Performance 100, Accessibility 100, Best
-  Practices 100, SEO 100; LCP 1.2 s, TBT 30 ms, CLS 0, Speed Index 0.9 s.
-- Live response policy: root returns HSTS, `nosniff`, strict referrer policy,
-  and the restrictive CSP header. Fingerprinted JS and CSS return the required
-  one-year immutable cache header.
-- Live identity: SHA-256 parity passed for generated `index.html`, JS, and CSS
-  (`1632f025...db61`, `033e52c3...e9a9`, `272b9746...7a5`). Privacy and terms
-  remain directly available; normal page load sends no analytics or external
-  runtime requests.
-
-## Deployment
-
-Built with `npm run build` and deployed from `dist/site/` through the work
-order's Azure Static Web Apps factory deployment. Production returned HTTP 200
-at https://photo-edit-portability-map.sociobot.in immediately after upload,
-and the custom domain reported `Ready` with managed TLS.
-
-## Known limits and next steps
-
-- Lightroom catalog schemas vary by release; the scanner recognizes common
-  table/column families and warns on unfamiliar schemas.
-- Embedded image metadata is reported as expected container state because the
-  privacy boundary intentionally excludes reading image pixels/binaries.
-- Proprietary Lightroom develop recipes/history cannot be faithfully
-  converted; the report continues to require rendered finals and catalog
-  preservation.
-- The factory still owns registry publication, signed cross-platform release
-  binaries, and live billing registration/checkout validation. The crate is
-  ready for publication with `cargo publish` after factory review; no registry
-  credential or direct payment provider was used here.
+No product code was modified during this verification. Only this handoff and
+`.factory/verification-2.md` were added/updated. The factory still owns any
+registry publication and deployment actions; none were performed here.

@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use edit_portability_map::{ScanOptions, TargetApp, license, render_text, scan};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 #[derive(Debug, Parser)]
@@ -95,8 +95,9 @@ fn run() -> Result<u8> {
             if sample_size > 10 {
                 license::require_pro()?;
             }
+            let resolved_inputs = ResolvedInputs::new(&source, &target, catalog.as_deref())?;
             for output in [&report, &json_report].into_iter().flatten() {
-                ensure_output_is_safe(output, &source, &target)?;
+                ensure_output_is_safe(output, &resolved_inputs)?;
             }
             let report_data = scan(&ScanOptions {
                 source,
@@ -139,14 +140,58 @@ fn run() -> Result<u8> {
     }
 }
 
-fn ensure_output_is_safe(output: &PathBuf, source: &PathBuf, target: &PathBuf) -> Result<()> {
-    let absolute_output = absolute_without_existing(output)?;
-    for input in [source, target] {
-        let canonical = fs::canonicalize(input).unwrap_or_else(|_| input.clone());
-        if absolute_output.starts_with(&canonical) {
+struct ResolvedInputs {
+    source: PathBuf,
+    target: PathBuf,
+    catalog: Option<PathBuf>,
+}
+
+impl ResolvedInputs {
+    fn new(source: &Path, target: &Path, catalog: Option<&Path>) -> Result<Self> {
+        let source = fs::canonicalize(source)
+            .with_context(|| format!("could not resolve source {}", source.display()))?;
+        let target = fs::canonicalize(target)
+            .with_context(|| format!("could not resolve target {}", target.display()))?;
+        if source == target {
+            bail!("source and target must resolve to different folders");
+        }
+        Ok(Self {
+            source,
+            target,
+            catalog: catalog
+                .map(|path| {
+                    fs::canonicalize(path)
+                        .with_context(|| format!("could not resolve catalog {}", path.display()))
+                })
+                .transpose()?,
+        })
+    }
+}
+
+fn ensure_output_is_safe(output: &Path, inputs: &ResolvedInputs) -> Result<()> {
+    let resolved_output = resolve_with_existing_ancestor(output)?;
+    for (label, input) in [("source", &inputs.source), ("target", &inputs.target)] {
+        if resolved_output.starts_with(input) {
             bail!(
                 "refusing to write report inside the scanned {} folder: {}",
-                if input == source { "source" } else { "target" },
+                label,
+                output.display()
+            );
+        }
+    }
+    if let Some(catalog) = &inputs.catalog {
+        let aliases_catalog = resolved_output == *catalog
+            || (fs::symlink_metadata(output).is_ok()
+                && same_file::is_same_file(output, catalog).with_context(|| {
+                    format!(
+                        "could not compare output {} with catalog {}",
+                        output.display(),
+                        catalog.display()
+                    )
+                })?);
+        if aliases_catalog {
+            bail!(
+                "refusing to overwrite the input Lightroom catalog with a report: {}",
                 output.display()
             );
         }
@@ -154,10 +199,69 @@ fn ensure_output_is_safe(output: &PathBuf, source: &PathBuf, target: &PathBuf) -
     Ok(())
 }
 
-fn absolute_without_existing(path: &PathBuf) -> Result<PathBuf> {
-    if path.is_absolute() {
-        Ok(path.clone())
+/// Resolve symlinks in every existing portion of a prospective output path.
+/// `canonicalize` cannot resolve a file whose final directories do not exist,
+/// so walk upward to the deepest existing ancestor and append the missing tail.
+fn resolve_with_existing_ancestor(path: &Path) -> Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
     } else {
-        Ok(std::env::current_dir()?.join(path))
+        std::env::current_dir()?.join(path)
+    };
+    let mut ancestor = absolute.as_path();
+    let mut tail = Vec::new();
+
+    loop {
+        match fs::symlink_metadata(ancestor) {
+            Ok(_) => {
+                let mut resolved = fs::canonicalize(ancestor).with_context(|| {
+                    format!(
+                        "could not resolve existing output path {}",
+                        ancestor.display()
+                    )
+                })?;
+                for component in tail.iter().rev() {
+                    resolved.push(component);
+                }
+                return normalize_absolute(&resolved);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let name = ancestor
+                    .file_name()
+                    .with_context(|| format!("could not resolve output path {}", path.display()))?;
+                tail.push(name.to_os_string());
+                ancestor = ancestor
+                    .parent()
+                    .with_context(|| format!("could not resolve output path {}", path.display()))?;
+            }
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!("could not inspect output path {}", ancestor.display())
+                });
+            }
+        }
     }
+}
+
+fn normalize_absolute(path: &Path) -> Result<PathBuf> {
+    use std::path::Component;
+
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
+                normalized.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !normalized.pop() {
+                    bail!(
+                        "output path escapes its filesystem root: {}",
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
+    Ok(normalized)
 }

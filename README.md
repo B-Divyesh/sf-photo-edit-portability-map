@@ -59,6 +59,10 @@ sample, or a value up to 10 in the free edition. Exit code `0` means the scan
 completed, `2` means an input/usage problem, and `3` means the inventory found
 migration blockers (only with `--fail-on-blockers`).
 
+Saved reports must resolve outside the source and target trees and cannot
+alias the input catalog. The CLI resolves symlinked paths and existing parent
+directories before scanning, then refuses unsafe output with exit code `2`.
+
 The JSON shape is versioned with `schema_version`. The documented examples are
 covered by integration tests.
 

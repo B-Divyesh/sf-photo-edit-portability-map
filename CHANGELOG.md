@@ -11,3 +11,9 @@ this project uses semantic versioning.
 - Target profiles for Immich, darktable, digiKam, and a generic file workflow.
 - Human and versioned JSON reports with checklists and verification samples.
 - Responsive, local-first product documentation and license restoration.
+
+### Fixed
+
+- Prevent report paths, including paths through symlinks or hard links, from
+  overwriting the input catalog or writing inside scanned folders.
+- Serve fingerprinted site assets with a one-year immutable cache policy.

@@ -151,6 +151,7 @@ dependencies = [
  "clap",
  "quick-xml",
  "rusqlite",
+ "same-file",
  "serde",
  "serde_json",
  "tempfile",

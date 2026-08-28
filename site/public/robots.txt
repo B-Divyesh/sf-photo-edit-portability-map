@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://photo-edit-portability-map.sociobot.in/sitemap.xml

@@ -9,6 +9,7 @@ repository = "https://github.com/B-Divyesh/sf-photo-edit-portability-map"
 readme = "README.md"
 keywords = ["lightroom", "xmp", "photography", "migration", "cli"]
 categories = ["command-line-utilities"]
+include = ["/src/**", "/tests/**", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [[bin]]
 name = "edit-portability-map"

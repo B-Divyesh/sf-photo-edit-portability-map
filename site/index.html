@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071315">
+    <meta name="description" content="A read-only CLI that maps which Lightroom edits and photo metadata will survive your migration.">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self' https://api.sociobot.in; base-uri 'self'; form-action 'self' https://api.sociobot.in">
+    <title>Edit Portability Map — Lightroom migration pre-flight CLI</title>
+    <link rel="canonical" href="https://photo-edit-portability-map.sociobot.in/">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/src/style.css">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <script type="module" src="/src/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/">
+        <span class="wordmark-mark" aria-hidden="true">E↗</span>
+        <span>Edit Portability Map</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#how">How it works</a>
+        <a href="#demo">Sample report</a>
+        <a href="#license">Pro</a>
+        <a href="https://github.com/B-Divyesh/sf-photo-edit-portability-map">Source</a>
+      </nav>
+      <span class="connection" id="connection"><span aria-hidden="true"></span>Local-first</span>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span>Read-only migration survey</span><span>v0.1.0</span></p>
+          <h1 id="hero-title">See what your edits are <em>actually</em> attached to.</h1>
+          <p class="lede">Before leaving Lightroom, map ratings, dates, keywords, virtual copies, and develop state across the file, XMP, catalog, and destination.</p>
+          <div class="command-bar" aria-label="Install command">
+            <code tabindex="0">cargo install --git github.com/B-Divyesh/sf-photo-edit-portability-map</code>
+            <button type="button" class="copy-button" data-copy="cargo install --git https://github.com/B-Divyesh/sf-photo-edit-portability-map" aria-label="Copy install command">Copy</button>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#start">Run your pre-flight</a>
+            <a class="button quiet" href="#demo">Read a sample map <span aria-hidden="true">↓</span></a>
+          </div>
+          <p class="trust-line"><span>◆ No image pixels read</span><span>◆ No catalog writes</span><span>◆ No telemetry</span></p>
+        </div>
+
+        <figure class="terrain">
+          <img src="/portability-landscape.webp" srcset="/portability-landscape-720.webp 720w, /portability-landscape.webp 1440w" width="1440" height="960" alt="Translucent archive layers with cyan paths passing through and amber paths stopping inside, illustrating portable and catalog-trapped metadata" fetchpriority="high" sizes="(max-width: 760px) 100vw, 52vw">
+          <figcaption>
+            <span><i class="route safe" aria-hidden="true"></i> Travels</span>
+            <span><i class="route held" aria-hidden="true"></i> Held in catalog</span>
+          </figcaption>
+          <div class="terrain-label" aria-hidden="true"><span>FILE</span><span>XMP</span><span>CATALOG</span><span>TARGET</span></div>
+        </figure>
+      </section>
+
+      <section class="strip" aria-label="Product capabilities">
+        <p><strong>4</strong><span>storage states</span></p>
+        <p><strong>17</strong><span>metadata categories</span></p>
+        <p><strong>0</strong><span>source writes</span></p>
+        <p><strong>1</strong><span>honest checklist</span></p>
+      </section>
+
+      <section class="section process" id="how" aria-labelledby="how-title">
+        <div class="section-intro">
+          <p class="eyebrow">Survey method / 01–03</p>
+          <h2 id="how-title">A field map, not a magic converter.</h2>
+          <p>The tool makes ownership visible. It never promises that one application's look can be translated into another's recipe.</p>
+        </div>
+        <ol class="steps">
+          <li><span class="step-number">01</span><div><h3>Inventory the layers</h3><p>Open a Lightroom catalog in SQLite read-only mode. Parse adjacent XMP as text. List source and target names without decoding photos.</p></div></li>
+          <li><span class="step-number">02</span><div><h3>Map support</h3><p>Classify each observed category by its real home and compare it with Immich, darktable, digiKam, or a generic file workflow.</p></div></li>
+          <li><span class="step-number">03</span><div><h3>Prove a sample</h3><p>Work blockers first, then import a deterministic cross-section. Keep every original until the destination passes inspection.</p></div></li>
+        </ol>
+      </section>
+
+      <section class="section demo" id="demo" aria-labelledby="demo-title">
+        <div class="demo-heading">
+          <div>
+            <p class="eyebrow">Recorded local run / alpine archive</p>
+            <h2 id="demo-title">Read the risk before moving a file.</h2>
+          </div>
+          <label for="profile">Target profile
+            <select id="profile">
+              <option value="immich">Immich</option>
+              <option value="darktable">darktable</option>
+              <option value="digikam">digiKam</option>
+              <option value="generic">Generic folder</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="report-shell">
+          <div class="report-rail" aria-label="Sample summary">
+            <p><span>Source</span><strong>18,420</strong></p>
+            <p><span>Matched</span><strong>18,412</strong></p>
+            <p class="warn"><span>Missing</span><strong>8</strong></p>
+            <p class="warn"><span>Catalog-only</span><strong>4</strong></p>
+          </div>
+          <div class="legend" aria-label="Storage state legend">
+            <span><i class="state embedded">E</i> Embedded</span>
+            <span><i class="state sidecar">S</i> Sidecar</span>
+            <span><i class="state catalog">C</i> Catalog-only</span>
+            <span><i class="state unsupported">!</i> Unsupported</span>
+          </div>
+          <div class="table-scroll" tabindex="0" aria-label="Scrollable sample portability inventory">
+            <table>
+              <caption>Sample portability inventory for the selected target</caption>
+              <thead><tr><th scope="col">State</th><th scope="col">Field</th><th scope="col">Records</th><th scope="col">Target result</th><th scope="col">Before you move</th></tr></thead>
+              <tbody id="report-body"></tbody>
+            </table>
+          </div>
+          <p class="report-note" id="profile-note" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="section start" id="start" aria-labelledby="start-title">
+        <div class="section-intro">
+          <p class="eyebrow">Run it / local terminal</p>
+          <h2 id="start-title">Point at a copy. Keep the evidence.</h2>
+          <p>A catalog is optional for XMP-only workflows. Reports must live outside the folders being scanned.</p>
+        </div>
+        <div class="terminal" aria-label="CLI example">
+          <div class="terminal-top"><span>pre-flight.sh</span><button type="button" class="copy-button" data-copy="edit-portability-map scan --catalog &quot;Lightroom Catalog.lrcat&quot; --source ./Originals --target /mnt/archive/Photos --target-app immich --json-report portability.json">Copy command</button></div>
+          <pre><code><span class="prompt">$</span> edit-portability-map scan \
+  --catalog <span class="string">"Lightroom Catalog.lrcat"</span> \
+  --source ./Originals \
+  --target /mnt/archive/Photos \
+  --target-app immich \
+  --json-report portability.json</code></pre>
+        </div>
+        <div class="boundaries">
+          <h3>The honest boundary</h3>
+          <p>Lightroom's develop recipe and history are proprietary application state. This tool flags them; it does not fake a conversion. Render critical finished versions, preserve originals, and keep a catalog backup.</p>
+        </div>
+      </section>
+
+      <section class="section license" id="license" aria-labelledby="license-title">
+        <div class="license-copy">
+          <p class="eyebrow">Optional Pro license</p>
+          <h2 id="license-title">A larger proof set, once.</h2>
+          <p>The complete inventory, safety checklist, and JSON export stay free. Pro expands the verification evidence pack from 10 to 100 files for larger, more varied libraries.</p>
+          <ul><li>One-time purchase; no subscription</li><li>License works across your own devices</li><li>Refunds and receipts handled by Sociobot/Dodo</li></ul>
+        </div>
+        <div class="price-sheet">
+          <p class="price"><span>$</span>19 <small>one time</small></p>
+          <a class="button primary full" href="https://api.sociobot.in/api/v1/products/photo-edit-portability-map/checkout">Buy Pro through Sociobot</a>
+          <p class="fine">Checkout opens on the merchant-of-record site.</p>
+          <form id="license-form">
+            <label for="license-token">Already purchased? Paste your license</label>
+            <div class="license-input"><input id="license-token" name="license" type="password" autocomplete="off" spellcheck="false" required><button type="submit">Verify</button></div>
+          </form>
+          <p class="license-status" id="license-status" role="status" aria-live="polite">Free edition active.</p>
+          <button type="button" class="copy-license" id="copy-license" hidden>Copy CLI activation command</button>
+          <p class="legal-links"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p><span class="wordmark-mark" aria-hidden="true">E↗</span> A small instrument for a consequential move.</p>
+      <p>MIT licensed · No telemetry · <a href="https://github.com/B-Divyesh/sf-photo-edit-portability-map">View source</a></p>
+    </footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

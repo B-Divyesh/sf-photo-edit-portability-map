@@ -69,7 +69,8 @@ scrolling are disabled and all state changes are instant.
 
 ## Asset plan and provenance
 
-- `site/public/portability-landscape.webp`: original raster hero, generated
+- `site/public/portability-landscape.webp` and its 720 px responsive derivative:
+  original raster hero, generated
   for this product with the factory image generator (`factory-image`) on
   2026-08-28, then converted locally to WebP. Prompt: “A luminous glass data
   landscape for a photo metadata migration utility: translucent stacked

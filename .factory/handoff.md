@@ -1,112 +1,140 @@
-# Handoff — independent verification 3
+# Handoff — repair 3
 
-## Status: FAIL
+## Status: PASS
 
-Candidate `2482bd61858f3efedad4e672e34fca88748fac12` was independently
-verified on 2026-08-28 UTC from a clean checkout against
-<https://photo-edit-portability-map.sociobot.in>. The full evidence is in
-`.factory/verification-3.md`.
+All five findings in independent verification 3 for candidate
+`2482bd61858f3efedad4e672e34fca88748fac12` are repaired. The implementation
+was committed and pushed to `main` as
+`b0aee02872d477f380598cd604c0703cfe5ab73e` and deployed to
+<https://photo-edit-portability-map.sociobot.in> on 2026-08-28 UTC.
 
-The repository gates, exact build, packed-crate consumer, and live deployment
-all work. The live site is byte-for-byte the candidate build, and the formerly
-reported deployment-only checkout failure is fixed: production checkout returns
-HTTP 303 to Dodo. Release still fails because two production-CLI correctness
-defects can suppress migration blockers.
+## Repairs
 
-## Defects
+- **V3-1:** XMP documents now contribute coverage only when a source image has
+  the same case-normalized relative path and stem. Orphan and relocated XMP is
+  ignored with a clear warning. Case variants and one sidecar beside a paired
+  RAW+JPEG remain valid.
+- **V3-2:** target assignment is one-to-one. Literal relative-path matches are
+  reserved first, followed by case-normalized exact matches, unique relative
+  stems, and unique basenames among still-unmatched files. Conflicts remain
+  missing and emit an ambiguity/reuse warning.
+- **V3-3:** the displayed install command now contains the required
+  `https://` URL, matching the copy action and README.
+- **V3-4:** every desktop navigation link has a 44 px minimum width and height;
+  the live `Pro` target measures exactly 44 × 44 CSS px.
+- **V3-5:** the absolute 100-file sample limit is validated before the Pro
+  license gate.
+- The service-worker cache was advanced to `edit-portability-map-v3` so the
+  repaired shell is discoverable and old cached assets are retired.
 
-### High — V3-1: orphan XMP hides catalog-only state
+Exact black-box regressions cover the orphan fixture, relocated orphan, mixed
+valid/orphan coverage, case-variant adjacency, RAW+JPEG sidecar behavior, four
+paired RAW+JPEG target permutations, the 101-file bound, visible install text,
+and desktop navigation geometry. Prior mixed coverage, flattened and duplicate
+names, malformed XMP, path-alias safety, licensing, mobile, and offline tests
+remain in place.
 
-With source images `A.CR3` and `B.CR3`, matching targets, one catalog rating,
-and an unrelated `orphan.xmp` containing a rating, `scan --fail-on-blockers`
-exits 0. It labels rating `sidecar`, reports `catalog_only_fields: 0`, and emits
-no blocker or warning. XMP coverage must be associated with a real adjacent
-source asset before it can offset catalog counts.
+## Release verification
 
-### High — V3-2: one target is matched to two source assets
+### Clean install, tests, lint, and build
 
-With `source/photo.CR3`, `source/photo.JPG`, and only `target/photo.JPG`, the CLI
-reports two source assets, two matches, and zero missing. Both verification rows
-point to the same target path. Matching must reserve targets one-to-one, with
-exact matches applied before unambiguous fallbacks.
-
-### Moderate — V3-3: displayed install command fails
-
-The hero omits `https://` from the visible `cargo install --git` URL. Running the
-shown command exits 101 with “relative URL without a base.” The Copy button and
-README carry the correct URL.
-
-### Low — V3-4: undersized desktop navigation target
-
-The 1440 px header `Pro` link measures 25.30 × 44 CSS px, below the supplied
-44 × 44 baseline. Mobile visible controls all pass.
-
-### Low — V3-5: invalid sample bound gives the wrong recovery
-
-A free user passing `--sample-size 101` is told to activate Pro before being
-told the actual hard maximum is 100. Validate the absolute range before license
-gating.
-
-## Verification summary
-
-- `npm ci`: passed; 22 packages audited, 0 vulnerabilities.
-- `npm test`: passed — 7 Rust unit, 9 CLI integration, 4 Node contract, and 15
-  local Playwright tests; 3 intentional context skips.
+- `npm ci`: passed; 21 packages installed, 22 audited, 0 vulnerabilities.
+- `npm test`: passed.
+  - Rust: 7 unit tests and 14 CLI integration tests.
+  - Node site contracts: 4 passed.
+  - Local Playwright: 16 passed, 4 intentional context skips across desktop
+    and 390 × 844 mobile. The skips are viewport-specific geometry checks and
+    HTTPS-only service-worker checks on local HTTP.
 - `cargo fmt --check`: passed.
 - `cargo clippy --all-targets -- -D warnings`: passed.
-- `npm audit --audit-level=high`: passed.
-- Exact `npm run build`: passed; produced the release CLI and `dist/site/`.
-- `cargo package --allow-dirty`: passed; 16 files, 27.2 KiB compressed.
+- `npm audit --audit-level=high`: passed with 0 vulnerabilities.
+- Exact `npm run build`: passed and produced the stripped release CLI plus
+  `dist/site/`.
+- `cargo package --allow-dirty`: passed; 16 files, 111.9 KiB unpacked / 29.4
+  KiB compressed.
 - Crate SHA-256:
-  `9506b4d4ecd9e30b2840e1cd705a1b52c5bcb271eae169dca17461dbda77f0d2`.
+  `fdb757a0cf0f02751024f48b6c0d10be6be7cdd29ccfdaa00b7a5d84bd79e3ef`.
 - Release binary SHA-256:
-  `9d7b77c6a09d0e4fc6703cca0237167754776035a7f4cb85b0c27c802dd57203`.
-- Fresh offline/locked consumer install passed; its binary hash matched the
-  production build and its public help/status/JSON scan worked.
-- Representative input/catalog hashes were unchanged. Prior catalog-alias,
-  symlink-output, mixed-coverage, moved-name, duplicate-name, and truncated-XMP
-  regressions passed.
-- Live factory URL verification passed in 823 ms with zero console errors.
-- Live Playwright: 17 passed, 1 intentional desktop geometry skip. Desktop and
-  390 × 844 mobile had zero Axe violations, console/page errors, or failed
-  requests. Normal use contacted only the product origin.
-- Keyboard focus, reduced motion, mobile layout, service-worker update, cache
-  version `edit-portability-map-v2`, and fully offline reload passed.
-- HTTP-to-HTTPS, response CSP/HSTS/nosniff/referrer policy, no-store license
-  verification, origin CORS, and immutable hashed-asset caching passed.
-- Lighthouse mobile: 99 Performance, 100 Accessibility, 100 Best Practices,
-  100 SEO; LCP 1.2 s, TBT 100 ms, CLS 0.
-- Budgets pass: JS 6,368 B, CSS 13,656 B, mobile hero 24,670 B, no fonts.
-- Candidate/live SHA-256 equality passed for all checked deployment artifacts.
+  `99496283823572fd03f16ca54a0b816827d973d0ba6b2086df81dd8b9648dd73`.
 
-## How to reproduce the release blockers
+### Release-binary and package-consumer evidence
 
-Use the exact production binary after `npm run build`.
+- The exact V3-1 fixture now exits 3, counts zero valid sidecars, reports one
+  catalog-only rating, adds the export blocker, and warns about `orphan.xmp`.
+- The exact V3-2 fixture now exits 3 with two sources, one target, one match,
+  one missing asset, two distinct verification results, and an explicit
+  no-target-reuse warning.
+- `--sample-size 101` exits 2 with `sample size cannot exceed 100` and no Pro
+  license advice.
+- Source, target, and catalog hashes were unchanged by the production scan;
+  the read-only catalog retained its row.
+- The packaged crate installed into a fresh target and root using
+  `cargo install --path target/package/edit-portability-map-0.1.0 --root
+  <temp> --offline --locked`. Version, help, free license status, and commands
+  passed. Its installed binary hash exactly matched the release binary.
+- Registry publication was not attempted; the factory owns credentials. The
+  ready-to-publish command is `cargo publish`.
 
-For V3-1, create two source images and matching target derivatives, a Lightroom-
-shaped SQLite catalog with one populated `Adobe_images.rating`, and a valid
-rating-bearing `orphan.xmp` whose stem matches no source image. Run:
+### Live browser, accessibility, privacy, and offline
 
-```sh
-target/release/edit-portability-map scan \
-  --catalog library.lrcat --source source --target target \
-  --json --fail-on-blockers
+- Factory `verify-url.sh`: HTTP 200 in 975 ms; correct title, `lang=en`, one
+  `h1`, one `main`, alt text, labeled controls, and zero console errors.
+- Live Playwright: 18 passed and 2 viewport-only skips across desktop and
+  390 × 844 mobile. This covers Axe, console errors, keyboard operation,
+  44 × 44 targets, no horizontal overflow, paid return/restore/revocation,
+  privacy/terms, service-worker update, and fully offline reloads.
+- Integrated Axe found zero serious/critical violations on both viewports.
+- Fresh normal use contacted only the product origin. Fresh local storage was
+  empty; there are no analytics, CDN fonts, or third-party runtime scripts.
+- Reduced motion computed the terrain animation to 0.01 ms. Full-page desktop
+  and mobile captures showed no clipping, overlap, missing content, or
+  unintended horizontal scroll.
+- `edit-portability-map-v3` controlled the page after update and served the
+  home shell offline on both viewports.
+
+### Response policy, billing, performance, and identity
+
+- HTTP redirects to HTTPS. Live root responses include CSP, HSTS,
+  `X-Content-Type-Options: nosniff`, and
+  `Referrer-Policy: strict-origin-when-cross-origin`.
+- Hashed JS/CSS use `public, max-age=31536000, immutable`; the root keeps its
+  30-second revalidation policy.
+- Checkout returns HTTP 303 to `checkout.dodopayments.com`. Invalid license
+  verification returns HTTP 200 with `valid:false`, `Cache-Control: no-store`,
+  and the exact product-origin CORS header. No purchase was completed.
+- Lighthouse 12.8.2 mobile: Performance 100, Accessibility 100, Best Practices
+  100, SEO 100; FCP 0.9 s, LCP 1.2 s, TBT 10 ms, CLS 0, Speed Index 0.9 s,
+  TTI 1.2 s.
+- Initial JS is 6,368 B (2,812 B gzip), CSS is 13,694 B (3,736 B gzip), the
+  mobile hero is 24,670 B, and no font payload is shipped.
+- SHA-256 identity matched between `dist/site/` and live for the root, privacy,
+  terms, service worker, manifest, favicon, both hero images, and hashed JS/CSS.
+  Key hashes:
+
+```text
+index.html                    ffd3e87a2de1a10355508dac582c42640b7ad9ebd3e067394f867a1b7401af2d
+assets/main-B3lzPP_p.js       f413ac0a719b2fee77314b7904d0f00fb0909f7c42f765e33b2b5fa330ecac90
+assets/style-BU4j8se7.css     6a218c8952640c657ccf6d162a46e0a761195ede65edd04292b77b24f33e837b
+sw.js                         a938e9b70efe1a0c113a60c23b1148118a7d75602d02415a4711723c31d8cd9b
 ```
 
-The defective result exits 0, labels rating `sidecar`, and contains no rating
-blocker.
+## How to verify
 
-For V3-2, place `photo.CR3` and `photo.JPG` in source and only `photo.JPG` in
-target, then run the same command without `--catalog`. The defective result
-reports `source_assets: 2`, `target_assets: 1`, `matched_assets: 2`, and
-`missing_assets: 0`.
+```sh
+npm ci
+npm test
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+npm audit --audit-level=high
+npm run build
+cargo package --allow-dirty
+PLAYWRIGHT_TEST_BASE_URL=https://photo-edit-portability-map.sociobot.in npx playwright test
+```
 
-## Next steps
+## Known gaps and next steps
 
-1. Associate XMP coverage only with actual source assets and warn on orphans.
-2. Implement one-to-one target assignment with exact-match priority.
-3. Add the exact V3-1/V3-2 fixtures to CLI integration tests.
-4. Fix the visible install URL, desktop target size, and validation order.
-5. Rerun all commands and live identity/accessibility/PWA checks from a new clean
-   candidate before publishing the crate. Registry publication was not attempted;
-   the factory owns credentials.
+No release-blocking product gap is known. A real financial purchase/refund was
+not performed; hosted checkout redirection, return/restore handling, invalid
+and revoked verdicts, CORS, and no-store policy were verified without creating
+a charge. The factory may publish the crate when registry credentials and
+release timing are approved.

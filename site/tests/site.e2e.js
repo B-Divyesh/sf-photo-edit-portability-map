@@ -18,6 +18,17 @@ test("loads without console errors and meets the serious accessibility baseline"
   expect(errors).toEqual([]);
 });
 
+test("normal use stays on the product origin", async ({ page, baseURL }) => {
+  const thirdParty = [];
+  const productOrigin = new URL(baseURL).origin;
+  page.on("request", (request) => {
+    if (new URL(request.url()).origin !== productOrigin) thirdParty.push(request.url());
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  expect(thirdParty).toEqual([]);
+});
+
 test("keyboard path reaches the primary command", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");
@@ -116,4 +127,22 @@ test("privacy and terms pages are direct and semantic", async ({ page }) => {
     await expect(page.locator("h1")).toHaveCount(1);
     await expect(page.locator("main")).toHaveCount(1);
   }
+});
+
+test("the deployed service worker updates its cache and serves the shell offline", async ({ page, context, baseURL }) => {
+  test.skip(!baseURL.startsWith("https://"), "live HTTPS service-worker check");
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.update();
+  });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  const caches = await page.evaluate(() => window.caches.keys());
+  expect(caches).toContain("edit-portability-map-v2");
+  await context.setOffline(true);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator("h1")).toContainText("See what your edits are");
+  await expect(page.locator("#connection")).toContainText("Offline");
+  await context.setOffline(false);
 });

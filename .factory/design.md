@@ -57,8 +57,8 @@ wide shallow crop, the result table becomes stacked field records, and all
 controls remain at least 44 px.
 
 Keyboard focus is a 3 px cyan outline plus dark offset. Copy, demo profile,
-and reset controls give immediate text feedback in an `aria-live` region. The
-CLI examples are real and covered by tests.
+reset, and license controls give immediate text feedback in an `aria-live`
+region. The CLI examples are real and covered by tests.
 
 ## Motion policy
 

@@ -1,3 +1,8 @@
+const PRODUCT = "photo-edit-portability-map";
+const API = `https://api.sociobot.in/api/v1/products/${PRODUCT}`;
+const TOKEN_KEY = `sb_license:${PRODUCT}`;
+const VERDICT_KEY = `${TOKEN_KEY}:verdict`;
+const DAY = 86_400_000;
 const DEMO_KEY = "demo:photo-edit-portability-map:state";
 
 const demoRows = [
@@ -57,6 +62,79 @@ function updateConnection() {
   const offline = !navigator.onLine;
   node.classList.toggle("offline", offline);
   node.lastChild.textContent = offline ? "Offline" : document.body.dataset.page === "demo" ? "Sample only" : "Local CLI";
+}
+
+function setLicenseStatus(message, state = "") {
+  const status = document.querySelector("#license-status");
+  if (!status) return;
+  status.textContent = message;
+  status.className = `license-status ${state}`.trim();
+}
+
+function revealLicenseCommand(token) {
+  const button = document.querySelector("#copy-license");
+  if (!button || !/^[A-Za-z0-9._~-]{8,4096}$/.test(token)) return false;
+  button.dataset.token = token;
+  button.hidden = false;
+  return true;
+}
+
+function cachedVerdict() {
+  try { return JSON.parse(localStorage.getItem(VERDICT_KEY)); } catch { return null; }
+}
+
+async function verifyLicense(token, force = false) {
+  const cached = cachedVerdict();
+  const matching = cached?.token === token ? cached : null;
+  if (!force && matching?.valid && Date.now() - matching.checkedAt < DAY) {
+    setLicenseStatus("Pro is active from a recent verification.", "active");
+    return;
+  }
+  setLicenseStatus(matching?.valid ? "Pro is active. Checking again…" : "Checking this license…", matching?.valid ? "active" : "");
+  try {
+    const response = await fetch(`${API}/verify?license=${encodeURIComponent(token)}`, { headers: { accept: "application/json" } });
+    if (!response.ok) throw new Error("verification service unavailable");
+    const result = await response.json();
+    localStorage.setItem(VERDICT_KEY, JSON.stringify({ token, valid: result.valid === true, checkedAt: Date.now() }));
+    if (result.valid === true) {
+      setLicenseStatus("Pro is active. Larger verification samples are available.", "active");
+      showToast("License verified.");
+    } else {
+      setLicenseStatus("This license is not active. Check the token or buy Pro.", "error");
+    }
+  } catch {
+    setLicenseStatus(matching?.valid ? "Pro stays active from its last verification. Reconnect to check again." : "License verification is unavailable. Your free scan still works.", matching?.valid ? "active" : "error");
+  }
+}
+
+function initialiseLicense() {
+  const form = document.querySelector("#license-form");
+  if (!form) return;
+  const url = new URL(window.location.href);
+  const returned = url.searchParams.get("license")?.trim();
+  const token = returned || localStorage.getItem(TOKEN_KEY);
+  if (returned) {
+    if (revealLicenseCommand(returned)) {
+      localStorage.setItem(TOKEN_KEY, returned);
+      url.searchParams.delete("license");
+      history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    } else {
+      setLicenseStatus("The returned license format is not recognized. Paste it below to retry.", "error");
+    }
+  }
+  if (token && revealLicenseCommand(token)) verifyLicense(token);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const next = new FormData(form).get("license").trim();
+    if (!revealLicenseCommand(next)) {
+      setLicenseStatus("Paste the complete license token and try again.", "error");
+      return;
+    }
+    localStorage.setItem(TOKEN_KEY, next);
+    form.reset();
+    verifyLicense(next, true);
+  });
+  document.querySelector("#copy-license").addEventListener("click", (event) => copyText(`edit-portability-map license activate ${event.currentTarget.dataset.token}`, event.currentTarget));
 }
 
 function renderDemo(profile) {
@@ -130,5 +208,6 @@ window.addEventListener("online", updateConnection);
 window.addEventListener("offline", updateConnection);
 leaveDemoIfRequested();
 if (document.body.dataset.page === "demo") initialiseDemo();
+initialiseLicense();
 updateConnection();
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js");

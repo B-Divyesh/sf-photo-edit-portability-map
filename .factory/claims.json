@@ -28,38 +28,59 @@
     "sandbox": "Fresh source and target fixture uses opaque invalid JPEG and WebP bytes; a completed JSON inventory proves no image decoder is required."
   },
   {
+    "id": "pro-sample-limit",
+    "claim": "The free CLI accepts samples up to 10 files and requires Pro above that limit.",
+    "where": "Landing page, Terms, README",
+    "test": "node --test --test-name-pattern=\"@claim:pro-sample-limit\" site/tests/claims.test.mjs",
+    "sandbox": "Fresh CLI fixtures run sample size 10 without a license and sample size 11 without a license."
+  },
+  {
     "id": "demo-populated-output",
     "claim": "Try it with sample data opens a labelled report with populated migration findings.",
     "where": "Landing page, Demo page",
-    "test": "npx playwright test --grep \"@claim:demo-populated-output\"",
+    "test": "npm run build:site && npx playwright test --grep \"@claim:demo-populated-output\"",
     "sandbox": "Fresh browser context follows the first-screen action and asserts the persistent demo label, controls, and realistic rows."
   },
   {
     "id": "demo-isolated",
     "claim": "The browser demo uses its own storage key, resets safely, and does not change real browser data.",
     "where": "Demo page, Privacy page",
-    "test": "npx playwright test --grep \"@claim:demo-isolated\"",
+    "test": "npm run build:site && npx playwright test --grep \"@claim:demo-isolated\"",
     "sandbox": "Fresh browser context seeds a non-demo key, changes and resets the demo, then leaves demo mode."
   },
   {
     "id": "demo-no-upload",
     "claim": "The browser demo does not upload files or contact third parties.",
     "where": "Privacy page",
-    "test": "npx playwright test --grep \"@claim:demo-no-upload\"",
+    "test": "npm run build:site && npx playwright test --grep \"@claim:demo-no-upload\"",
     "sandbox": "Fresh browser context records every request during the full demo flow and permits only the product origin."
   },
   {
     "id": "demo-profile",
     "claim": "The sample report changes its target capability result for the selected profile.",
     "where": "Demo page",
-    "test": "npx playwright test --grep \"@claim:demo-profile\"",
+    "test": "npm run build:site && npx playwright test --grep \"@claim:demo-profile\"",
     "sandbox": "Fresh browser context selects darktable and checks the rendered report result and status text."
+  },
+  {
+    "id": "license-restore",
+    "claim": "A returned license is stored locally, verified with Sociobot, and removed from the URL.",
+    "where": "Landing page, Privacy page",
+    "test": "npm run build:site && npx playwright test --grep \"@claim:license-restore\"",
+    "sandbox": "Fresh browser context uses a recorded invalid verification response and asserts storage, status, and URL cleanup."
+  },
+  {
+    "id": "checkout-starts",
+    "claim": "Buy Pro opens the registered Sociobot checkout.",
+    "where": "Landing page, Terms, README",
+    "test": "npm run build:site && PLAYWRIGHT_TEST_BASE_URL=https://photo-edit-portability-map.sociobot.in npx playwright test --grep \"@claim:checkout-starts\"",
+    "sandbox": "Fresh live browser context activates the real checkout link and asserts the redirect without entering payment details."
   },
   {
     "id": "offline-demo-reload",
     "claim": "The demo reloads offline after its first visit.",
     "where": "Service worker behaviour",
-    "test": "PLAYWRIGHT_TEST_BASE_URL=https://photo-edit-portability-map.sociobot.in npx playwright test --grep \"@claim:offline-demo-reload\"",
+    "test": "npm run build:site && PLAYWRIGHT_TEST_BASE_URL=https://photo-edit-portability-map.sociobot.in npx playwright test --grep \"@claim:offline-demo-reload\"",
     "sandbox": "New browser context visits the live demo over HTTPS, waits for its worker, goes offline, and reloads the populated sample."
   }
 ]

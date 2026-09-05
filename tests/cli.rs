@@ -555,6 +555,29 @@ fn pro_sized_sample_requires_a_license() {
 }
 
 #[test]
+fn claim_free_sample_limit_accepts_ten_without_a_license() {
+    let (_temp, source, target) = fixture();
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .env_remove("EDIT_PORTABILITY_MAP_LICENSE")
+        .env("XDG_CONFIG_HOME", _temp.path().join("empty-config"))
+        .args([
+            "scan",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--sample-size",
+            "10",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["verification_sample"].as_array().unwrap().len(), 1);
+}
+
+#[test]
 fn sample_size_above_hard_maximum_is_rejected_before_license_gate() {
     let (_temp, source, target) = fixture();
     let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))

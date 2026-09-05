@@ -58,6 +58,12 @@ versioned JSON report when you pass `--json` or `--json-report`.
 Use `--sample-size 0` to omit the verification list. Add `--fail-on-blockers`
 when you want a non-zero result for migration blockers.
 
+## Optional Pro license
+
+The free CLI checks up to 10 files. A Pro license is needed for larger samples.
+Buy or restore a license at <https://photo-edit-portability-map.sociobot.in/#license>.
+Checkout opens through Sociobot.
+
 ## Read the report
 
 - **Embedded**: expected inside the photo container.

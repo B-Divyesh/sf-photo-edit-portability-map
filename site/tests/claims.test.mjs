@@ -34,3 +34,9 @@ test("@claim:no-image-decoding opaque image placeholders still produce an invent
   await cargoTest("claim_scan_lists_opaque_image_placeholders_without_decoding_them");
   assert.ok(true);
 });
+
+test("@claim:pro-sample-limit the free CLI accepts ten files and requires Pro above ten", async () => {
+  await cargoTest("claim_free_sample_limit_accepts_ten_without_a_license");
+  await cargoTest("pro_sized_sample_requires_a_license");
+  assert.ok(true);
+});

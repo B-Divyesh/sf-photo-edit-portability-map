@@ -44,6 +44,14 @@ are technical references rather than prose. Word counts ignore punctuation.
 | L36 | 8 | Render finished versions that you need to preserve. | — |
 | L37 | 9 | A CLI for checking photo metadata before migration. | — |
 | L38 | 4 | Built by Param Factory | — |
+| L39 | 3 | Optional Pro license | — |
+| L40 | 5 | Buy a larger verification sample. | — |
+| L41 | 10 | The free CLI checks up to 10 photos. | — |
+| L42 | 11 | Use a Pro license when you need a larger sample. | — |
+| L43 | 4 | Buy Pro through Sociobot | — |
+| L44 | 6 | Checkout opens on Sociobot’s merchant site. | — |
+| L45 | 8 | Have a license? Paste it to restore access. | — |
+| L46 | 3 | Verify license | — |
 
 No entry exceeds 22 words. No prohibited marketing word appears. Headings name
 their section and buttons name the result.

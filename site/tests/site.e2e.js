@@ -57,6 +57,21 @@ test("@claim:demo-profile the sample report changes when the selected target cha
   await expect(page.locator("#demo-report-body")).toContainText("Supported");
 });
 
+test("@claim:license-restore a returned license is stored, verified, and removed from the address", async ({ page }) => {
+  await page.route("https://api.sociobot.in/**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ valid: false, reason: "invalid", expires_at: null }) }));
+  await page.goto("/?license=invalid_test_token_12345#license");
+  await expect(page).toHaveURL(/\/#license$/);
+  await expect(page.locator("#license-status")).toContainText("not active");
+  expect(await page.evaluate(() => localStorage.getItem("sb_license:photo-edit-portability-map"))).toBe("invalid_test_token_12345");
+});
+
+test("@claim:checkout-starts the real Pro action redirects to Sociobot checkout", async ({ page, baseURL }) => {
+  test.skip(!baseURL.startsWith("https://"), "uses the live registered checkout endpoint");
+  await page.goto("/");
+  await page.getByRole("link", { name: "Buy Pro through Sociobot" }).click();
+  await expect.poll(() => page.url()).toMatch(/^https:\/\/(api\.sociobot\.in|checkout\.dodopayments\.com)\//);
+});
+
 test("each published page has a semantic shell and no serious accessibility issues", async ({ page }) => {
   for (const path of ["/", "/demo/", "/privacy/", "/terms/", "/404.html"]) {
     const errors = [];

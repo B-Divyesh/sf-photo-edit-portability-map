@@ -1,44 +1,36 @@
-const PRODUCT = "photo-edit-portability-map";
-const API = `https://api.sociobot.in/api/v1/products/${PRODUCT}`;
-const TOKEN_KEY = `sb_license:${PRODUCT}`;
-const VERDICT_KEY = `${TOKEN_KEY}:verdict`;
-const DAY = 86_400_000;
+const DEMO_KEY = "demo:photo-edit-portability-map:state";
 
 const demoRows = [
-  { state: "E", tone: "embedded", field: "Camera and lens EXIF", records: "18,420", support: { default: "supported" }, action: "Confirm camera, lens, ISO, and orientation on three files." },
-  { state: "S", tone: "sidecar", field: "Corrected capture date", records: "614", support: { default: "supported", generic: "verify" }, action: "Check a corrected video date after the destination rescan." },
-  { state: "S", tone: "sidecar", field: "Star rating", records: "7,382", support: { immich: "partial", default: "supported", generic: "verify" }, action: "Confirm 0, 3, and 5-star examples." },
-  { state: "S", tone: "sidecar", field: "Keywords and hierarchy", records: "12,110", support: { immich: "partial", default: "supported", generic: "verify" }, action: "Check one nested keyword branch; hierarchy may flatten." },
-  { state: "C", tone: "catalog", field: "Collections", records: "86", support: { digikam: "partial", default: "unsupported" }, action: "Export collection membership or recreate it as tags." },
-  { state: "C", tone: "catalog", field: "Virtual copies", records: "223", support: { default: "unsupported" }, action: "Render or duplicate every version you intend to keep." },
-  { state: "!", tone: "unsupported", field: "Lightroom develop recipe", records: "15,906", support: { default: "unsupported" }, action: "Render critical finals; preserve RAW files and the catalog." }
+  { state: "E", tone: "embedded", field: "Camera and lens EXIF", records: "3", support: { default: "supported" }, action: "Confirm camera, lens, ISO, and orientation." },
+  { state: "S", tone: "sidecar", field: "Keywords", records: "2", support: { generic: "verify", default: "supported" }, action: "Check one keyword after import." },
+  { state: "C", tone: "catalog", field: "Corrected capture date", records: "2", support: { generic: "verify", default: "supported" }, action: "Check the corrected date after import." },
+  { state: "C", tone: "catalog", field: "Star rating", records: "1", support: { immich: "partial", generic: "verify", default: "supported" }, action: "Confirm a 3-star example." },
+  { state: "!", tone: "unsupported", field: "Lightroom develop recipe", records: "3", support: { default: "unsupported" }, action: "Render finished versions that you need." }
 ];
 
-const supportLabel = { supported: "Supported", partial: "Partial — verify", unsupported: "Unsupported", verify: "Unknown — verify" };
-const profileNames = { immich: "Immich", darktable: "darktable", digikam: "digiKam", generic: "a generic folder" };
+const supportLabel = { supported: "Supported", partial: "Partial — check", unsupported: "Unsupported", verify: "Check" };
+const profileNames = { immich: "Immich", darktable: "darktable", digikam: "digiKam", generic: "generic folder" };
 
-function renderDemo(profile) {
-  const body = document.querySelector("#report-body");
-  body.replaceChildren(...demoRows.map((row) => {
-    const result = row.support[profile] ?? row.support.default;
-    const tr = document.createElement("tr");
-    const cells = [
-      `<i class="state ${row.tone}">${row.state}</i>`,
-      row.field,
-      row.records,
-      `<span class="support ${result}">${supportLabel[result]}</span>`,
-      row.action
-    ];
-    ["State", "Field", "Records", "Target result", "Before you move"].forEach((label, index) => {
-      const td = document.createElement("td");
-      td.dataset.label = label;
-      if (index === 4) td.className = "action";
-      td.innerHTML = cells[index];
-      tr.append(td);
-    });
-    return tr;
-  }));
-  document.querySelector("#profile-note").textContent = `Showing the conservative ${profileNames[profile]} capability profile. Your installed version is the final authority.`;
+function readDemoState() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DEMO_KEY));
+    return profileNames[parsed?.profile] ? parsed : { profile: "immich" };
+  } catch {
+    return { profile: "immich" };
+  }
+}
+
+function writeDemoState(state) {
+  localStorage.setItem(DEMO_KEY, JSON.stringify(state));
+}
+
+function showToast(message) {
+  const toast = document.querySelector("#toast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("show");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2400);
 }
 
 async function copyText(value, button) {
@@ -47,8 +39,7 @@ async function copyText(value, button) {
   } catch {
     const area = document.createElement("textarea");
     area.value = value;
-    area.style.position = "fixed";
-    area.style.opacity = "0";
+    area.className = "clipboard-fallback";
     document.body.append(area);
     area.select();
     document.execCommand("copy");
@@ -56,116 +47,88 @@ async function copyText(value, button) {
   }
   const original = button.textContent;
   button.textContent = "Copied";
-  showToast("Command copied. Your files stay local.");
+  showToast("Command copied.");
   window.setTimeout(() => { button.textContent = original; }, 1600);
-}
-
-let toastTimer;
-function showToast(message) {
-  const toast = document.querySelector("#toast");
-  toast.textContent = message;
-  toast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => toast.classList.remove("show"), 2400);
-}
-
-function setLicenseStatus(message, state = "") {
-  const status = document.querySelector("#license-status");
-  status.textContent = message;
-  status.className = `license-status ${state}`.trim();
-}
-
-function revealCliActivation(token) {
-  const button = document.querySelector("#copy-license");
-  if (!/^[A-Za-z0-9._~-]{8,4096}$/.test(token)) {
-    button.hidden = true;
-    return false;
-  }
-  button.dataset.token = token;
-  button.hidden = false;
-  return true;
-}
-
-function cachedVerdict() {
-  try { return JSON.parse(localStorage.getItem(VERDICT_KEY)); } catch { return null; }
-}
-
-async function verifyLicense(token, force = false) {
-  const cached = cachedVerdict();
-  const cachedForToken = cached?.token === token ? cached : null;
-  if (!force && cachedForToken?.valid && Date.now() - cachedForToken.checkedAt < DAY) {
-    setLicenseStatus("Pro active. License was verified within the last day.", "active");
-    return;
-  }
-  if (cachedForToken?.valid) setLicenseStatus("Pro active. Rechecking quietly…", "active");
-  else setLicenseStatus("Checking this license…");
-  try {
-    const response = await fetch(`${API}/verify?license=${encodeURIComponent(token)}`, { headers: { accept: "application/json" } });
-    if (!response.ok) throw new Error("verification service unavailable");
-    const result = await response.json();
-    localStorage.setItem(VERDICT_KEY, JSON.stringify({ token, valid: result.valid === true, checkedAt: Date.now() }));
-    if (result.valid === true) {
-      setLicenseStatus("Pro active. Verification samples up to 100 files are unlocked.", "active");
-      showToast("License verified. Pro is active.");
-    } else {
-      setLicenseStatus("This license is no longer active. Check the token or purchase a new license.", "error");
-    }
-  } catch {
-    if (cachedForToken?.valid) setLicenseStatus("Pro active from the last verified check. Offline recheck postponed.", "active");
-    else setLicenseStatus("License verification is unavailable. Your free tools still work; reconnect and try again.", "error");
-  }
-}
-
-function acceptReturnLicense() {
-  const url = new URL(window.location.href);
-  const token = url.searchParams.get("license")?.trim();
-  if (!token) {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) revealCliActivation(stored);
-    return stored;
-  }
-  if (!revealCliActivation(token)) {
-    setLicenseStatus("The returned license has an unexpected format. Paste it below to retry.", "error");
-    return null;
-  }
-  localStorage.setItem(TOKEN_KEY, token);
-  url.searchParams.delete("license");
-  history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-  return token;
 }
 
 function updateConnection() {
   const node = document.querySelector("#connection");
+  if (!node) return;
   const offline = !navigator.onLine;
   node.classList.toggle("offline", offline);
-  node.lastChild.textContent = offline ? "Offline · local demo ready" : "Local-first";
+  node.lastChild.textContent = offline ? "Offline" : document.body.dataset.page === "demo" ? "Sample only" : "Local CLI";
 }
 
-document.querySelector("#profile").addEventListener("change", (event) => renderDemo(event.target.value));
+function renderDemo(profile) {
+  const body = document.querySelector("#demo-report-body");
+  if (!body) return;
+  body.replaceChildren(...demoRows.map((row) => {
+    const result = row.support[profile] ?? row.support.default;
+    const tr = document.createElement("tr");
+    const values = [
+      { label: "State", type: "state" },
+      { label: "Field", text: row.field },
+      { label: "Records", text: row.records },
+      { label: "Target result", type: "support" },
+      { label: "What to do", text: row.action, action: true }
+    ];
+    for (const value of values) {
+      const cell = document.createElement("td");
+      cell.dataset.label = value.label;
+      if (value.action) cell.className = "action";
+      if (value.type === "state") {
+        const state = document.createElement("i");
+        state.className = `state ${row.tone}`;
+        state.textContent = row.state;
+        cell.append(state, ` ${row.tone === "catalog" ? "Catalog-only" : row.tone === "sidecar" ? "Sidecar" : row.tone === "embedded" ? "Embedded" : "Unsupported"}`);
+      } else if (value.type === "support") {
+        const support = document.createElement("span");
+        support.className = `support ${result}`;
+        support.textContent = supportLabel[result];
+        cell.append(support);
+      } else {
+        cell.textContent = value.text;
+      }
+      tr.append(cell);
+    }
+    return tr;
+  }));
+  document.querySelector("#profile-note").textContent = `Showing the ${profileNames[profile]} capability profile. Check your installed version before migration.`;
+}
+
+function initialiseDemo() {
+  const state = readDemoState();
+  writeDemoState(state);
+  const profile = document.querySelector("#profile");
+  profile.value = state.profile;
+  renderDemo(state.profile);
+  profile.addEventListener("change", () => {
+    const next = { profile: profile.value };
+    writeDemoState(next);
+    renderDemo(next.profile);
+  });
+  document.querySelector("#reset-demo").addEventListener("click", () => {
+    const reset = { profile: "immich" };
+    writeDemoState(reset);
+    profile.value = reset.profile;
+    renderDemo(reset.profile);
+    showToast("Demo reset. Sample data is unchanged.");
+  });
+  document.querySelector("#start-real").addEventListener("click", () => localStorage.removeItem(DEMO_KEY));
+}
+
+function leaveDemoIfRequested() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("start") !== "real") return;
+  localStorage.removeItem(DEMO_KEY);
+  url.searchParams.delete("start");
+  history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 document.querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", () => copyText(button.dataset.copy, button)));
-document.querySelector("#license-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const token = new FormData(event.currentTarget).get("license").trim();
-  if (!token || !revealCliActivation(token)) {
-    setLicenseStatus("That license format is not recognized. Check the complete token and try again.", "error");
-    return;
-  }
-  localStorage.setItem(TOKEN_KEY, token);
-  event.currentTarget.reset();
-  verifyLicense(token, true);
-});
-document.querySelector("#copy-license").addEventListener("click", (event) => {
-  copyText(`edit-portability-map license activate ${event.currentTarget.dataset.token}`, event.currentTarget);
-});
 window.addEventListener("online", updateConnection);
 window.addEventListener("offline", updateConnection);
-
-renderDemo("immich");
+leaveDemoIfRequested();
+if (document.body.dataset.page === "demo") initialiseDemo();
 updateConnection();
-const license = acceptReturnLicense();
-if (license) {
-  const cached = cachedVerdict();
-  if (cached?.token === license && cached.valid) setLicenseStatus("Pro active from your last verified check.", "active");
-  verifyLicense(license);
-}
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js");

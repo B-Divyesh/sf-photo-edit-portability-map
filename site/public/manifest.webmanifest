@@ -5,5 +5,8 @@
   "display": "standalone",
   "background_color": "#071315",
   "theme_color": "#071315",
-  "description": "Read-only Lightroom and XMP migration pre-flight"
+  "description": "Read-only CLI for checking what Lightroom metadata can move with your photos.",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
 }

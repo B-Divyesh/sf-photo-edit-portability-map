@@ -1,21 +1,26 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#071315">
-    <meta name="description" content="Privacy policy for Edit Portability Map."><title>Privacy — Edit Portability Map</title>
-    <link rel="stylesheet" href="/src/style.css"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071315">
+    <meta name="description" content="Privacy information for the Edit Portability Map CLI and sample site.">
+    <title>Privacy — Edit Portability Map</title>
+    <link rel="canonical" href="https://photo-edit-portability-map.sociobot.in/privacy/">
+    <meta property="og:type" content="website"><meta property="og:title" content="Privacy — Edit Portability Map"><meta property="og:description" content="Privacy information for the CLI and sample site."><meta property="og:image" content="https://photo-edit-portability-map.sociobot.in/portability-map-card.webp"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Privacy — Edit Portability Map"><meta name="twitter:description" content="Privacy information for the CLI and sample site."><meta name="twitter:image" content="https://photo-edit-portability-map.sociobot.in/portability-map-card.webp">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/src/style.css">
   </head>
-  <body>
+  <body data-page="privacy">
     <a class="skip-link" href="#main">Skip to main content</a>
-    <main id="main" class="legal-page">
-      <a class="back" href="/">← Back to Edit Portability Map</a>
-      <p class="eyebrow">Policy / effective 28 August 2026</p>
-      <h1>Privacy, in plain sight.</h1>
-      <h2>CLI data</h2><p>The CLI runs locally. It reads paths, file names, XMP text, and an optional Lightroom SQLite catalog in read-only/query-only mode. It does not decode image pixels, upload an inventory, access cloud credentials, or include telemetry.</p>
-      <h2>Website data</h2><p>The website has no analytics, advertising, remote fonts, or third-party runtime scripts. The interactive sample uses recorded data and does not accept your files.</p>
-      <h2>License storage</h2><p>If you return from checkout with a license or paste one into the restore form, the token is stored in your browser under <code>sb_license:photo-edit-portability-map</code>. A valid/invalid verdict and its check time are cached for up to one day. The token is sent only to Sociobot's license verification endpoint. You can remove it by clearing this site's storage.</p>
-      <h2>Checkout</h2><p>Sociobot and Dodo are the merchant of record and process purchase, receipt, tax, and refund data under their own policies. This site does not receive payment card details.</p>
-      <h2>Contact</h2><p>For a privacy request, open an issue in the public project repository without including a license token, catalog, or personal photo metadata.</p>
+    <header class="site-header"><a class="wordmark" href="/"><span class="wordmark-mark" aria-hidden="true">E↗</span><span>Edit Portability Map</span></a><nav aria-label="Primary navigation"><a href="/demo/">Demo</a><a href="/#how">How it works</a><a href="/#install">Install</a><a href="/privacy/" aria-current="page">Privacy</a></nav></header>
+    <main id="main" class="legal-page" tabindex="-1">
+      <p class="eyebrow">Effective 5 September 2026</p><h1>Privacy for local photo inventory.</h1>
+      <h2>CLI data</h2><p>The CLI reads paths, file names, XMP text, and an optional Lightroom catalog. It writes only reports that you name outside the scanned folders.</p>
+      <h2>Sample data</h2><p>The website demo uses bundled sample data. It stores only the selected target profile under a demo-only browser key. Resetting or leaving the demo removes that key.</p>
+      <h2>Website requests</h2><p>The site has no analytics, advertising, remote fonts, or third-party runtime scripts. The sample demo does not upload files.</p>
+      <h2>Contact</h2><p>Email <a href="mailto:privacy@sociobot.in?subject=Edit%20Portability%20Map%20privacy">privacy@sociobot.in</a>. Do not send a catalog, photo metadata, or license token by email.</p>
     </main>
+    <footer><p><span class="wordmark-mark" aria-hidden="true">E↗</span> A CLI for checking photo metadata before migration.</p><p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-photo-edit-portability-map">Source</a></p><p>Built by Param Factory · v0.1.0 · repair-4</p></footer>
   </body>
 </html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071315">
+    <meta name="description" content="Run the Edit Portability Map sample scan without using your own photo library.">
+    <title>Demo — Edit Portability Map</title>
+    <link rel="canonical" href="https://photo-edit-portability-map.sociobot.in/demo/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Demo — Edit Portability Map">
+    <meta property="og:description" content="Run the bundled photo migration sample without using your own files.">
+    <meta property="og:image" content="https://photo-edit-portability-map.sociobot.in/portability-map-card.webp">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Demo — Edit Portability Map">
+    <meta name="twitter:description" content="Run the bundled photo migration sample without using your own files.">
+    <meta name="twitter:image" content="https://photo-edit-portability-map.sociobot.in/portability-map-card.webp">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="stylesheet" href="/src/style.css">
+    <script type="module" src="/src/app.js"></script>
+  </head>
+  <body data-page="demo">
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/"><span class="wordmark-mark" aria-hidden="true">E↗</span><span>Edit Portability Map</span></a>
+      <nav aria-label="Primary navigation"><a href="/demo/" aria-current="page">Demo</a><a href="/#how">How it works</a><a href="/#install">Install</a><a href="/privacy/">Privacy</a></nav>
+      <span class="connection" id="connection"><span aria-hidden="true"></span>Sample only</span>
+    </header>
+    <main id="main" tabindex="-1">
+      <section class="demo-banner" aria-label="Demo controls">
+        <p><strong>Demo — sample data, nothing is saved</strong><span> This page uses a separate browser key. It never reads your files.</span></p>
+        <div><button type="button" id="reset-demo">Reset demo</button><a class="button quiet" id="start-real" href="/?start=real">Start for real</a></div>
+      </section>
+      <section class="demo-hero" aria-labelledby="demo-title">
+        <p class="eyebrow">Bundled sample scan</p>
+        <h1 id="demo-title">Check sample photo metadata before migration.</h1>
+        <p>Three sample photos match three targets. The report shows metadata that still needs attention.</p>
+        <p class="demo-command"><code>edit-portability-map demo</code><button type="button" class="copy-button" data-copy="edit-portability-map demo">Copy demo command</button></p>
+      </section>
+      <section class="section demo-output" aria-labelledby="output-title">
+        <div class="demo-heading">
+          <div><p class="eyebrow">Sample report</p><h2 id="output-title">Review the populated output.</h2></div>
+          <label for="profile">Target profile<select id="profile"><option value="immich">Immich</option><option value="darktable">darktable</option><option value="digikam">digiKam</option><option value="generic">Generic folder</option></select></label>
+        </div>
+        <div class="report-shell">
+          <div class="report-rail" aria-label="Sample summary"><p><span>Source</span><strong>3</strong></p><p><span>Matched</span><strong>3</strong></p><p class="warn"><span>Catalog-only</span><strong>3</strong></p><p class="warn"><span>Unsupported</span><strong>1</strong></p></div>
+          <div class="legend" aria-label="Storage state legend"><span><i class="state embedded">E</i>Embedded</span><span><i class="state sidecar">S</i>Sidecar</span><span><i class="state catalog">C</i>Catalog-only</span><span><i class="state unsupported">!</i>Unsupported</span></div>
+          <div class="table-scroll" tabindex="0" aria-label="Scrollable sample report"><table><caption>Sample output from the bundled CLI demo</caption><thead><tr><th scope="col">State</th><th scope="col">Field</th><th scope="col">Records</th><th scope="col">Target result</th><th scope="col">What to do</th></tr></thead><tbody id="demo-report-body"></tbody></table></div>
+          <p class="report-note" id="profile-note" aria-live="polite"></p>
+        </div>
+      </section>
+      <section class="section recording" aria-labelledby="recording-title">
+        <div class="section-intro"><p class="eyebrow">CLI demo recording</p><h2 id="recording-title">Run the same sample in your terminal.</h2><p>The command creates a new temporary folder, writes sample reports there, and prints its path.</p></div>
+        <img src="/demo-terminal.svg" width="1200" height="675" alt="Terminal recording of the demo command reporting three matched source photos, three catalog-only fields, and a temporary output folder.">
+        <details><summary>Read the terminal demo transcript</summary><pre><code>$ edit-portability-map demo
+Source      3   Target      3   Matched      3   Missing      0
+Catalog-only fields   3
+Demo sandbox: /tmp/edit-portability-map-demo-…
+Reports: portability-report.txt and portability-report.json</code></pre></details>
+      </section>
+    </main>
+    <footer>
+      <p><span class="wordmark-mark" aria-hidden="true">E↗</span> A CLI for checking photo metadata before migration.</p>
+      <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-photo-edit-portability-map">Source</a></p>
+      <p>Built by Param Factory · v0.1.0 · repair-4</p>
+    </footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

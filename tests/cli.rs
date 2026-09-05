@@ -41,6 +41,121 @@ fn documented_json_scan_is_scriptable() {
 }
 
 #[test]
+fn claim_demo_command_creates_a_populated_isolated_sample_report() {
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .arg("demo")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("Source      3"));
+    assert!(stdout.contains("Catalog-only fields   3"));
+    let root = stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("Demo sandbox: "))
+        .map(std::path::PathBuf::from)
+        .expect("demo prints its isolated output folder");
+    let report: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join("portability-report.json")).unwrap()).unwrap();
+    assert_eq!(report["summary"]["source_assets"], 3);
+    assert_eq!(report["summary"]["matched_assets"], 3);
+    assert_eq!(report["summary"]["catalog_only_fields"], 3);
+    assert_eq!(report["summary"]["target_unsupported_fields"], 1);
+    assert!(root.join("Originals/2024-04-12/harbor.xmp").is_file());
+    assert!(root.join("Target/2024-04-13/rain.jpg").is_file());
+    assert!(root.join("sample.lrcat").is_file());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn claim_readonly_scan_keeps_source_target_and_catalog_bytes_unchanged() {
+    let (temp, source, target) = fixture();
+    let catalog = temp.path().join("library.lrcat");
+    let connection = rusqlite::Connection::open(&catalog).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE Adobe_images (id INTEGER PRIMARY KEY, rating INTEGER);\
+             INSERT INTO Adobe_images (rating) VALUES (4);",
+        )
+        .unwrap();
+    drop(connection);
+    let source_before = fs::read(source.join("frame.jpg")).unwrap();
+    let target_before = fs::read(target.join("frame.webp")).unwrap();
+    let catalog_before = fs::read(&catalog).unwrap();
+    let text_report = temp.path().join("report.txt");
+    let json_report = temp.path().join("report.json");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--catalog",
+            catalog.to_str().unwrap(),
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--report",
+            text_report.to_str().unwrap(),
+            "--json-report",
+            json_report.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(fs::read(source.join("frame.jpg")).unwrap(), source_before);
+    assert_eq!(fs::read(target.join("frame.webp")).unwrap(), target_before);
+    assert_eq!(fs::read(&catalog).unwrap(), catalog_before);
+    assert!(text_report.is_file());
+    assert!(json_report.is_file());
+}
+
+#[test]
+fn claim_json_report_and_target_profiles_are_scriptable() {
+    let (_temp, source, target) = fixture();
+    for profile in ["generic", "immich", "darktable", "digikam"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+            .args([
+                "scan",
+                "--source",
+                source.to_str().unwrap(),
+                "--target",
+                target.to_str().unwrap(),
+                "--target-app",
+                profile,
+                "--json",
+            ])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(report["schema_version"], "1.0");
+        assert_eq!(report["target_app"], profile);
+        assert_eq!(report["summary"]["matched_assets"], 1);
+    }
+}
+
+#[test]
+fn claim_scan_lists_opaque_image_placeholders_without_decoding_them() {
+    let (_temp, source, target) = fixture();
+    fs::write(source.join("frame.jpg"), b"this is not a valid JPEG image").unwrap();
+    fs::write(target.join("frame.webp"), b"this is not a valid WebP image").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .args([
+            "scan",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["summary"]["matched_assets"], 1);
+}
+
+#[test]
 fn mixed_catalog_and_xmp_coverage_is_a_catalog_only_blocker() {
     let (temp, source, target) = fixture();
     fs::write(source.join("second.CR3"), b"not opened").unwrap();

@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use edit_portability_map::{ScanOptions, TargetApp, license, render_text, scan};
+use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -9,8 +10,8 @@ use std::process::ExitCode;
 #[command(
     name = "edit-portability-map",
     version,
-    about = "See which Lightroom and XMP state will survive a photo-library move",
-    long_about = "Read-only migration pre-flight for Lightroom catalogs, XMP sidecars, and a target folder. It inventories metadata ownership without decoding image pixels or modifying source files."
+    about = "Inventory Lightroom metadata before moving a photo library",
+    long_about = "Read-only scanner for Lightroom catalogs, XMP sidecars, and a target folder. It lists metadata that can move and metadata that needs checking."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -49,11 +50,13 @@ enum Command {
         #[arg(long)]
         fail_on_blockers: bool,
     },
-    /// Activate or inspect the optional one-time Pro license
+    /// Activate or inspect an optional local license token
     License {
         #[command(subcommand)]
         command: LicenseCommand,
     },
+    /// Run the bundled sample scan in a new temporary folder
+    Demo,
 }
 
 #[derive(Debug, Subcommand)]
@@ -140,7 +143,86 @@ fn run() -> Result<u8> {
             }
             Ok(0)
         }
+        Command::Demo => run_demo(),
     }
+}
+
+fn run_demo() -> Result<u8> {
+    let root = tempfile::Builder::new()
+        .prefix("edit-portability-map-demo-")
+        .tempdir()?
+        .keep();
+    let source = root.join("Originals");
+    let target = root.join("Target");
+    let catalog = root.join("sample.lrcat");
+
+    for (relative, contents) in [
+        (
+            "Originals/2024-04-12/harbor.CR3",
+            include_bytes!("../examples/demo/Originals/2024-04-12/harbor.CR3").as_slice(),
+        ),
+        (
+            "Originals/2024-04-12/harbor.xmp",
+            include_bytes!("../examples/demo/Originals/2024-04-12/harbor.xmp").as_slice(),
+        ),
+        (
+            "Originals/2024-04-12/studio.CR3",
+            include_bytes!("../examples/demo/Originals/2024-04-12/studio.CR3").as_slice(),
+        ),
+        (
+            "Originals/2024-04-12/studio.xmp",
+            include_bytes!("../examples/demo/Originals/2024-04-12/studio.xmp").as_slice(),
+        ),
+        (
+            "Originals/2024-04-13/rain.CR3",
+            include_bytes!("../examples/demo/Originals/2024-04-13/rain.CR3").as_slice(),
+        ),
+        (
+            "Target/2024-04-12/harbor.jpg",
+            include_bytes!("../examples/demo/Target/2024-04-12/harbor.jpg").as_slice(),
+        ),
+        (
+            "Target/2024-04-12/studio.jpg",
+            include_bytes!("../examples/demo/Target/2024-04-12/studio.jpg").as_slice(),
+        ),
+        (
+            "Target/2024-04-13/rain.jpg",
+            include_bytes!("../examples/demo/Target/2024-04-13/rain.jpg").as_slice(),
+        ),
+    ] {
+        let path = root.join(relative);
+        fs::create_dir_all(path.parent().expect("demo files have parents"))?;
+        fs::write(path, contents)?;
+    }
+
+    let connection = Connection::open(&catalog).with_context(|| {
+        format!(
+            "could not create bundled demo catalog {}",
+            catalog.display()
+        )
+    })?;
+    connection.execute_batch(include_str!("../examples/demo/catalog.sql"))?;
+    drop(connection);
+
+    let report = scan(&ScanOptions {
+        source,
+        target,
+        catalog: Some(catalog),
+        target_app: TargetApp::Immich,
+        sample_size: 3,
+    })?;
+    let text = render_text(&report);
+    fs::write(root.join("portability-report.txt"), &text)?;
+    fs::write(
+        root.join("portability-report.json"),
+        format!("{}\n", serde_json::to_string_pretty(&report)?),
+    )?;
+
+    print!("{text}");
+    println!("Demo sandbox: {}", root.display());
+    println!("Reports: portability-report.txt and portability-report.json");
+    println!("Only bundled files were created. Your photo library was not read or changed.");
+    Ok(0)
 }
 
 struct ResolvedInputs {

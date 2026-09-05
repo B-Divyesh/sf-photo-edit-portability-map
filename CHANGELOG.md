@@ -3,6 +3,25 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and
 this project uses semantic versioning.
 
+## [Unreleased]
+
+### Added
+
+- `edit-portability-map demo`, which creates a populated sample scan in a new
+  temporary folder without reading a user library.
+- Bundled source, target, XMP, and catalog-schema sample fixtures in
+  `examples/demo/`.
+- A browser demo route, persistent sample label, reset control, and designed
+  missing-page route.
+- Claim registry and clean-sandbox CLI and browser claim tests.
+
+### Changed
+
+- Rewrote the landing, legal, and README copy around the migration job and
+  first sample action.
+- Added route-specific metadata, social image, touch icon, sitemap entry, and
+  shared legal-page navigation and footer.
+
 ## [0.1.0] - 2026-08-28
 
 ### Added

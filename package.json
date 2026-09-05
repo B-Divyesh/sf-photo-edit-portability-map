@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config site/vite.config.js",
-    "test": "cargo test && node --test site/tests/*.test.mjs && npm run build:site && playwright test",
+    "test": "cargo test && npm run build:site && node --test site/tests/*.test.mjs && playwright test",
     "build:site": "vite build --config site/vite.config.js",
     "build:cli": "cargo build --release",
     "build": "npm run build:cli && npm run build:site"

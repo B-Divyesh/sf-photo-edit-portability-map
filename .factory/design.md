@@ -57,8 +57,8 @@ wide shallow crop, the result table becomes stacked field records, and all
 controls remain at least 44 px.
 
 Keyboard focus is a 3 px cyan outline plus dark offset. Copy, demo profile,
-license verification, and disclosure controls give immediate text feedback in
-an `aria-live` region. The CLI examples are real and covered by tests.
+and reset controls give immediate text feedback in an `aria-live` region. The
+CLI examples are real and covered by tests.
 
 ## Motion policy
 
@@ -81,6 +81,14 @@ scrolling are disabled and all state changes are instant.
   cyan, periwinkle and amber emitted light, crisp glass edges, tactile but
   abstract, no people, no cameras, no logos, no text, no watermark.” Licensed
   for this project as generated output.
+- `site/public/portability-map-card.webp` and `site/public/apple-touch-icon.png`:
+  local center crops of the generated landscape, made with ImageMagick on
+  2026-09-05 for social sharing and the 180 px touch icon. They introduce no
+  new third-party material.
+- `site/public/demo-terminal.svg`: original hand-made recording of the bundled
+  `edit-portability-map demo` command, made on 2026-09-05. The adjacent text
+  transcript remains available to screen readers and people who do not want to
+  read text in an image.
 - Interface symbols are original CSS/Unicode constructions. No stock icons,
   third-party artwork, remote fonts, scripts, or visual libraries are used.
 

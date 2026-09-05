@@ -1,0 +1,1 @@
+Map Lightroom metadata before moving photos.

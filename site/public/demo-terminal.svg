@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Edit Portability Map demo terminal recording</title>
+  <desc id="desc">A terminal runs the bundled sample scan and reports three matched photos, catalog-only metadata, and a temporary output folder.</desc>
+  <rect width="1200" height="675" fill="#041012"/>
+  <rect x="24" y="24" width="1152" height="627" rx="4" fill="#0d2022" stroke="#315557" stroke-width="2"/>
+  <circle cx="58" cy="56" r="8" fill="#ff7b72"/><circle cx="84" cy="56" r="8" fill="#ffc76b"/><circle cx="110" cy="56" r="8" fill="#4de7cf"/>
+  <g fill="#a9beb9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="23">
+    <text x="60" y="118" fill="#4de7cf">$ edit-portability-map demo</text>
+    <text x="60" y="168">EDIT PORTABILITY MAP  /  immich</text>
+    <text x="60" y="218">────────────────────────────────────────────────────────</text>
+    <text x="60" y="268">Source      3   Target      3   Matched      3   Missing      0</text>
+    <text x="60" y="318">XMP         2   Catalog records      3   Catalog-only fields   3</text>
+    <text x="60" y="385" fill="#f0f8f5">PORTABILITY INVENTORY</text>
+    <text x="60" y="435" fill="#ffc76b">C  Star rating                         1   ~ partial</text>
+    <text x="60" y="485" fill="#ff7b72">C  Lightroom develop recipe            3   ! unsupported</text>
+    <text x="60" y="552" fill="#4de7cf">Demo sandbox: /tmp/edit-portability-map-demo-…</text>
+    <text x="60" y="602">Reports: portability-report.txt and portability-report.json</text>
+  </g>
+</svg>

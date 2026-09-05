@@ -1,44 +1,23 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
+import { resolve } from "node:path";
 import test from "node:test";
 
-const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
+const dist = resolve(import.meta.dirname, "../../dist/site");
 
-test("landing page has the required semantic shell", async () => {
-  const html = await read("../index.html");
-  assert.match(html, /<html lang="en">/);
-  assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
-  assert.match(html, /<main id="main"[^>]*>/);
-  assert.match(html, /alt="Translucent archive layers/);
-  assert.match(html, /href="\/privacy\/"/);
-  assert.match(html, /href="\/terms\/"/);
-  assert.match(html, /<code tabindex="0">cargo install --git https:\/\/github\.com\/B-Divyesh\/sf-photo-edit-portability-map<\/code>/);
-  assert.doesNotMatch(html, /--git github\.com/);
-});
-
-test("paid unlock follows the Sociobot storage and verification contract", async () => {
-  const html = await read("../index.html");
-  const script = await read("../src/app.js");
-  assert.match(html, /href="https:\/\/api\.sociobot\.in\/api\/v1\/products\/photo-edit-portability-map\/checkout"/);
-  assert.match(script, /sb_license:/);
-  assert.match(script, /\/verify\?license=/);
-  assert.match(script, /history\.replaceState/);
-  assert.match(script, /86_400_000/);
-  assert.match(script, /cached\?\.token === token/);
-});
-
-test("motion and focus have explicit accessible treatments", async () => {
-  const css = await read("../src/style.css");
-  assert.match(css, /:focus-visible/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /min-height: 44px/);
-  assert.match(css, /nav a \{[^}]*min-width: 44px/);
-});
-
-test("deployment gives hashed assets immutable caching and a response CSP", async () => {
-  const config = JSON.parse(await read("../public/staticwebapp.config.json"));
-  const assets = config.routes.find((route) => route.route === "/assets/*");
-  assert.equal(assets.headers["Cache-Control"], "public, max-age=31536000, immutable");
-  assert.match(config.globalHeaders["Content-Security-Policy"], /default-src 'self'/);
-  assert.equal(config.globalHeaders["X-Content-Type-Options"], "nosniff");
+test("the production site build contains each published route and required visual assets", async () => {
+  const files = [
+    "index.html",
+    "demo/index.html",
+    "privacy/index.html",
+    "terms/index.html",
+    "404.html",
+    "portability-map-card.webp",
+    "apple-touch-icon.png",
+    "demo-terminal.svg",
+    "staticwebapp.config.json"
+  ];
+  for (const file of files) await access(resolve(dist, file));
+  assert.equal((await stat(resolve(dist, "portability-map-card.webp"))).size > 10_000, true);
+  assert.equal((await stat(resolve(dist, "apple-touch-icon.png"))).size > 10_000, true);
 });

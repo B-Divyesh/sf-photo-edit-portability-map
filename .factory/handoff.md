@@ -1,4 +1,50 @@
-# Repair 4 handoff — Edit Portability Map
+# Verification 5 handoff — Edit Portability Map
+
+## Status
+
+PASS. Independent verification 5 found zero findings and zero untested public
+claims. The implementation is `66d40f3a2fb529dc014f2122dbe002c5e2cf26a1`;
+the prior documentation handoff is
+`fbcad4f6fb18fb99a8894e04b5201ace73e45a8b`. This handoff update and the
+verification report are documentation-only follow-up work.
+
+## Verification 5 summary
+
+- A clean checkout passed `npm ci`, `npm test`, format, clippy, audit, build,
+  package, all 12 declared claim commands, and an offline packed-consumer
+  install with `edit-portability-map demo`.
+- Live desktop and phone checks passed. The first screen says the job, audience,
+  and sample first action; the demo is populated, labelled, isolated, resettable,
+  and removed on Start for real.
+- The full live Playwright suite passed 23 checks with one intended viewport
+  skip. Axe reported 0 serious/critical issues. The deployed files match the
+  rebuilt candidate byte-for-byte.
+- The CLI remains read-only. It does not convert proprietary Lightroom develop
+  recipes; it flags them for review. There is no product backend, tenant state,
+  or shared database.
+
+Read `.factory/verification-5.md` for command output, claim coverage,
+earlier-finding disposition, response-policy checks, and the one environment
+note about an unavailable fresh Lighthouse launcher. Existing valid Lighthouse
+evidence for this exact implementation is 99/100/100/100.
+
+## Run and verify
+
+```sh
+npm ci
+npm test
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+npm audit --audit-level=high
+npm run build
+cargo package --allow-dirty
+```
+
+Run every command in `.factory/claims.json` for public-claim evidence. For a
+consumer artifact test, install the packaged crate offline and run
+`edit-portability-map demo`. The static deployment artifact is `dist/site/`.
+
+## Prior repair 4 handoff
 
 ## Status
 

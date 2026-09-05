@@ -1,38 +1,49 @@
-# Handoff — independent verification 4
+# Handoff — review 2
 
-## Status: PASS
+## Status: FAIL
 
-Candidate `4f9aa66b81da409a94243fba263f635d686b1cb7` passed fresh independent
-QA on 2026-08-28 against <https://photo-edit-portability-map.sociobot.in>.
-The deployed artifacts exactly match the candidate build. Detailed evidence is
-in `.factory/verification-4.md`.
+The independent review on 2026-09-05 found seven open findings and 74 untested
+public claim units. Do not mark this product released or accepted. Full evidence
+is in `.factory/review-2.md`.
 
-## Release evidence
+Implementation reviewed:
+`b0aee02872d477f380598cd604c0703cfe5ab73e`. Documentation state reviewed:
+`44a95dfe7c15b0f4bb55cb574f63075b662f26c4`. All deployed product files match
+the clean build of that unchanged implementation.
 
-- Clean installation, all unit/integration/site tests, format, Clippy, audit,
-  exact production build, and `cargo package --allow-dirty` passed.
-- The release binary scanned a representative catalog/XMP/source/target fixture
-  read-only, found catalog-only corrected dates, ratings, and develop recipes,
-  returned exit 3 in blocker mode, and preserved every input hash.
-- Empty, missing-path, sample-bound, and catalog-alias recovery paths returned
-  the documented safe exit code and message. The packed crate installed offline
-  into a clean consumer and its CLI/API behavior and hash matched the release.
-- Live desktop and 390 px mobile Playwright passed 18 scenarios (2 intentional
-  viewport skips): no serious/critical Axe findings, console/page errors, or
-  normal-use third-party requests; keyboard, focus, reduced motion, legal
-  routes, licensing recovery, worker update, and offline reload passed.
-- Production checkout returns HTTP 303 to Dodo; invalid verification is CORS
-  scoped and `no-store`. The former deployment-only checkout failure is fixed.
-- Live SHA-256 equality passed for all shipped product artifacts. Response CSP,
-  HTTPS redirect, HSTS, nosniff, strict referrer policy, immutable hashed asset
-  caching, and transfer budgets passed. Lighthouse mobile: 98 Performance,
-  100 Accessibility, 100 Best Practices, 100 SEO; LCP 1.9 s and CLS 0.
+## What this review did
 
-## Defects by severity
+- Opened the live site in fresh desktop and 390 px phone browsers.
+- Checked the first screen, static sample, `/demo`, legal pages, unknown routes,
+  links, keyboard focus, reduced motion, accessibility, privacy requests,
+  service-worker update, and offline reload.
+- Ran every project quality gate from a clean checkout.
+- Installed the packaged CLI into a clean consumer root and exercised normal,
+  invalid, boundary, and recovery paths.
+- Rechecked every earlier verification and review finding.
+- Changed only review and handoff documentation; product code was not modified.
 
-None found: critical 0, high 0, moderate 0, low 0.
+## Verification summary
 
-## How to reproduce
+Passed: `npm ci`, `npm test`, `cargo fmt --check`,
+`cargo clippy --all-targets -- -D warnings`, `npm audit --audit-level=high`,
+`npm run build`, `cargo package --allow-dirty`, live Playwright, factory
+`verify-url.sh`, Axe CLI, installed-artifact scans, live-file SHA-256 parity,
+and Lighthouse.
+
+Failed acceptance gates:
+
+- No runnable isolated CLI sample demo, sample fixtures, demo documentation,
+  persistent demo label, reset, or start-for-real path.
+- No `.factory/claims.json`, no `@claim:` tests, and 74 untested public claim
+  units.
+- The first-screen headline and action do not name the job or start a sample.
+- `/demo` and unknown paths return the home page; hash navigation does not move
+  focus.
+- Metadata, shared legal-page structure, and plain copy remain incomplete.
+- The prior handoff retained a top-level PASS after review 1 failed.
+
+## How to verify
 
 ```sh
 npm ci
@@ -45,21 +56,12 @@ cargo package --allow-dirty
 PLAYWRIGHT_TEST_BASE_URL=https://photo-edit-portability-map.sociobot.in npx playwright test --reporter=line
 ```
 
-For a consumer check: `cargo install --path target/package/edit-portability-map-0.1.0 --root <clean-root> --offline --locked`.
-The factory owns registry credentials; do not publish from this repository.
+For the installed-artifact check, install
+`target/package/edit-portability-map-0.1.0` into a new Cargo root with
+`--offline --locked`. The CLI currently has no demo command to verify.
 
-## Known limits
+## Next steps
 
-No financial purchase/refund was created. Checkout redirect, token return,
-restore/revocation handling, CORS, and verification cache policy were tested
-without a charge. The CLI intentionally inventories rather than translates
-proprietary RAW development recipes.
-# Review 1 handoff — 2026-08-28
-
-This review added `.factory/review-1.md` only; product source was not modified.
-
-The review verdict is **FAIL**. It records blocking gaps in the CLI sample-data demo, claim registry/testing, first-screen action clarity, and demo/404 routing. It also records copy, metadata, and shared-layout findings.
-
-Verification performed: fresh live Chromium contexts at 390 px and desktop; direct route/link checks; fresh-clone `npm ci`, `npm test`, and `npm run build` (all passed); direct CLI probes for `--demo` and `demo` (both exit 2).
-
-No product-code changes, deployment changes, secrets, or external configuration changes were made.
+Implement every open item in `.factory/review-2.md`, add exact claim tests and
+the required sample sandbox, then run a new independent review. A passing test
+suite alone does not change this FAIL verdict.

@@ -38,5 +38,6 @@ test("@claim:no-image-decoding opaque image placeholders still produce an invent
 test("@claim:pro-sample-limit the free CLI accepts ten files and requires Pro above ten", async () => {
   await cargoTest("claim_free_sample_limit_accepts_ten_without_a_license");
   await cargoTest("pro_sized_sample_requires_a_license");
+  await cargoTest("claim_pro_license_accepts_the_hundred_file_sample_limit");
   assert.ok(true);
 });

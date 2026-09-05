@@ -65,11 +65,85 @@ test("@claim:license-restore a returned license is stored, verified, and removed
   expect(await page.evaluate(() => localStorage.getItem("sb_license:photo-edit-portability-map"))).toBe("invalid_test_token_12345");
 });
 
+test("@claim:site-runtime-privacy every published page loads only product assets", async ({ page, baseURL }) => {
+  const productOrigin = new URL(baseURL).origin;
+  const requests = [];
+  page.on("request", (request) => requests.push({
+    method: request.method(),
+    resourceType: request.resourceType(),
+    url: request.url()
+  }));
+
+  for (const path of ["/", "/demo/", "/privacy/", "/terms/", "/404.html"]) {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+  }
+
+  expect(requests.length).toBeGreaterThan(5);
+  expect(requests.filter(({ url }) => new URL(url).origin !== productOrigin)).toEqual([]);
+  expect(requests.filter(({ resourceType }) => resourceType === "font")).toEqual([]);
+  expect(requests.filter(({ method }) => method !== "GET")).toEqual([]);
+});
+
+test("@claim:license-daily-verdict caches a license verdict for one day and contacts only Sociobot", async ({ page, baseURL }) => {
+  const productOrigin = new URL(baseURL).origin;
+  const token = "valid_test_token_12345";
+  const externalRequests = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).origin !== productOrigin) externalRequests.push(request.url());
+  });
+  await page.route("https://api.sociobot.in/**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ valid: true, reason: "ok", expires_at: null })
+  }));
+
+  const beforeVerification = Date.now();
+  await page.goto(`/?license=${token}#license`);
+  await expect(page.locator("#license-status")).toContainText("Pro is active");
+  const stored = await page.evaluate(() => ({
+    token: localStorage.getItem("sb_license:photo-edit-portability-map"),
+    verdict: JSON.parse(localStorage.getItem("sb_license:photo-edit-portability-map:verdict"))
+  }));
+  expect(stored.token).toBe(token);
+  expect(stored.verdict).toMatchObject({ token, valid: true });
+  expect(stored.verdict.checkedAt).toBeGreaterThanOrEqual(beforeVerification);
+
+  await page.evaluate(() => {
+    const key = "sb_license:photo-edit-portability-map:verdict";
+    const verdict = JSON.parse(localStorage.getItem(key));
+    verdict.checkedAt = Date.now() - 86_400_000 + 60_000;
+    localStorage.setItem(key, JSON.stringify(verdict));
+  });
+  await page.reload();
+  await expect(page.locator("#license-status")).toContainText("recent verification");
+  expect(externalRequests).toHaveLength(1);
+
+  await page.evaluate(() => {
+    const key = "sb_license:photo-edit-portability-map:verdict";
+    const verdict = JSON.parse(localStorage.getItem(key));
+    verdict.checkedAt = Date.now() - 86_400_000 - 60_000;
+    localStorage.setItem(key, JSON.stringify(verdict));
+  });
+  await page.reload();
+  await expect(page.locator("#license-status")).toContainText("Larger verification samples are available");
+  expect(externalRequests).toHaveLength(2);
+  for (const requestUrl of externalRequests) {
+    const url = new URL(requestUrl);
+    expect(url.origin).toBe("https://api.sociobot.in");
+    expect(url.pathname).toBe("/api/v1/products/photo-edit-portability-map/verify");
+    expect(url.searchParams.get("license")).toBe(token);
+  }
+});
+
 test("@claim:checkout-starts the real Pro action redirects to Sociobot checkout", async ({ page, baseURL }) => {
   test.skip(!baseURL.startsWith("https://"), "uses the live registered checkout endpoint");
   await page.goto("/");
   await page.getByRole("link", { name: "Buy Pro through Sociobot" }).click();
-  await expect.poll(() => page.url()).toMatch(/^https:\/\/(api\.sociobot\.in|checkout\.dodopayments\.com)\//);
+  await expect.poll(() => page.url()).toMatch(/^https:\/\/checkout\.dodopayments\.com\//);
+  await expect(page.getByText("Edit Portability Map Pro", { exact: true }).filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("$19.00", { exact: true }).filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText("One-time Pro unlock", { exact: false }).filter({ visible: true })).toBeVisible();
 });
 
 test("each published page has a semantic shell and no serious accessibility issues", async ({ page }) => {
@@ -102,16 +176,18 @@ test("keyboard users can skip content, copy commands, and operate the sample con
   await expect(page.locator("#profile-note")).not.toHaveText("");
 });
 
-test("mobile content fits and visible targets meet the touch target baseline", async ({ page }, testInfo) => {
+test("mobile home and demo fit and visible targets meet the touch target baseline", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "390px regression");
-  await page.goto("/demo/");
-  const metrics = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, width: document.documentElement.scrollWidth }));
-  expect(metrics).toEqual({ viewport: 390, width: 390 });
-  const small = await page.locator("a:visible, button:visible, select:visible").evaluateAll((items) => items.map((item) => {
-    const box = item.getBoundingClientRect();
-    return { name: item.textContent.trim() || item.getAttribute("aria-label"), width: box.width, height: box.height };
-  }).filter((item) => item.width < 44 || item.height < 44));
-  expect(small).toEqual([]);
+  for (const path of ["/", "/demo/"]) {
+    await page.goto(path);
+    const metrics = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, width: document.documentElement.scrollWidth }));
+    expect(metrics).toEqual({ viewport: 390, width: 390 });
+    const small = await page.locator("a:visible, button:visible, select:visible").evaluateAll((items) => items.map((item) => {
+      const box = item.getBoundingClientRect();
+      return { name: item.textContent.trim() || item.getAttribute("aria-label"), width: box.width, height: box.height };
+    }).filter((item) => item.width < 44 || item.height < 44));
+    expect(small).toEqual([]);
+  }
 });
 
 test("reduced motion removes the entrance animation", async ({ page }) => {

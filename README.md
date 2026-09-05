@@ -60,9 +60,10 @@ when you want a non-zero result for migration blockers.
 
 ## Optional Pro license
 
-The free CLI checks up to 10 files. A Pro license is needed for larger samples.
-Buy or restore a license at <https://photo-edit-portability-map.sociobot.in/#license>.
-Checkout opens through Sociobot.
+The free CLI checks up to 10 files. A $19 one-time Pro license raises the
+verification sample to 100 files. Buy or restore a license at
+<https://photo-edit-portability-map.sociobot.in/#license>. Checkout opens
+through Sociobot.
 
 ## Read the report
 

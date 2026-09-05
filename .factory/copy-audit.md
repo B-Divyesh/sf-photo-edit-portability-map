@@ -47,11 +47,15 @@ are technical references rather than prose. Word counts ignore punctuation.
 | L39 | 3 | Optional Pro license | — |
 | L40 | 5 | Buy a larger verification sample. | — |
 | L41 | 10 | The free CLI checks up to 10 photos. | — |
-| L42 | 11 | Use a Pro license when you need a larger sample. | — |
-| L43 | 4 | Buy Pro through Sociobot | — |
-| L44 | 6 | Checkout opens on Sociobot’s merchant site. | — |
-| L45 | 8 | Have a license? Paste it to restore access. | — |
-| L46 | 3 | Verify license | — |
+| L42 | 8 | Pro raises the verification sample to 100 photos. | — |
+| L43 | 3 | $19 one time | — |
+| L44 | 4 | Buy Pro through Sociobot | — |
+| L45 | 3 | A one-time purchase. | — |
+| L46 | 6 | Checkout opens on Sociobot’s merchant site. | — |
+| L47 | 8 | Have a license? Paste it to restore access. | — |
+| L48 | 3 | Verify license | — |
+| L49 | 1 | Privacy | — |
+| L50 | 3 | Terms and refunds | — |
 
 No entry exceeds 22 words. No prohibited marketing word appears. Headings name
 their section and buttons name the result.

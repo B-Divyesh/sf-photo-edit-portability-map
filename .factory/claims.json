@@ -29,10 +29,10 @@
   },
   {
     "id": "pro-sample-limit",
-    "claim": "The free CLI accepts samples up to 10 files and requires Pro above that limit.",
+    "claim": "The free CLI accepts samples up to 10 files; Pro accepts samples up to the 100-file hard limit.",
     "where": "Landing page, Terms, README",
     "test": "node --test --test-name-pattern=\"@claim:pro-sample-limit\" site/tests/claims.test.mjs",
-    "sandbox": "Fresh CLI fixtures run sample size 10 without a license and sample size 11 without a license."
+    "sandbox": "Fresh CLI fixtures run sample size 10 without a license, reject size 11 without a license, and accept size 100 with a recent recorded valid verdict."
   },
   {
     "id": "demo-populated-output",
@@ -56,6 +56,13 @@
     "sandbox": "Fresh browser context records every request during the full demo flow and permits only the product origin."
   },
   {
+    "id": "site-runtime-privacy",
+    "claim": "Every published site page loads without analytics, advertising, remote fonts, or third-party runtime scripts.",
+    "where": "Privacy page, README",
+    "test": "npm run build:site && npx playwright test --grep \"@claim:site-runtime-privacy\"",
+    "sandbox": "Fresh browser context visits home, demo, privacy, terms, and 404 while recording all requests; only GET requests to the product origin are allowed and no font request may occur."
+  },
+  {
     "id": "demo-profile",
     "claim": "The sample report changes its target capability result for the selected profile.",
     "where": "Demo page",
@@ -70,11 +77,18 @@
     "sandbox": "Fresh browser context uses a recorded invalid verification response and asserts storage, status, and URL cleanup."
   },
   {
+    "id": "license-daily-verdict",
+    "claim": "A browser license token and verdict are stored locally; a valid verdict is reused for one day, and the token is sent only to Sociobot for verification.",
+    "where": "Privacy page",
+    "test": "npm run build:site && npx playwright test --grep \"@claim:license-daily-verdict\"",
+    "sandbox": "Fresh browser context records every external request, uses a recorded valid Sociobot response, checks token and verdict storage, then proves a verdict just under one day is reused and an older verdict is refreshed only through the product verification endpoint."
+  },
+  {
     "id": "checkout-starts",
-    "claim": "Buy Pro opens the registered Sociobot checkout.",
+    "claim": "The Pro license is a $19 one-time purchase, and Buy Pro opens the registered Sociobot checkout with that offer.",
     "where": "Landing page, Terms, README",
     "test": "npm run build:site && PLAYWRIGHT_TEST_BASE_URL=https://photo-edit-portability-map.sociobot.in npx playwright test --grep \"@claim:checkout-starts\"",
-    "sandbox": "Fresh live browser context activates the real checkout link and asserts the redirect without entering payment details."
+    "sandbox": "Fresh live browser context activates the real checkout link and checks the product name, $19.00 amount, and one-time description without entering payment details."
   },
   {
     "id": "offline-demo-reload",

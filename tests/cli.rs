@@ -578,6 +578,52 @@ fn claim_free_sample_limit_accepts_ten_without_a_license() {
 }
 
 #[test]
+fn claim_pro_license_accepts_the_hundred_file_sample_limit() {
+    let (temp, source, target) = fixture();
+    let config_root = temp.path().join("valid-config");
+    let license_dir = config_root.join("photo-edit-portability-map");
+    fs::create_dir_all(&license_dir).unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    fs::write(
+        license_dir.join("license.json"),
+        serde_json::json!({
+            "token": "recorded-valid-token",
+            "valid": true,
+            "checked_at": now,
+            "attempted_at": now
+        })
+        .to_string(),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))
+        .env_remove("EDIT_PORTABILITY_MAP_LICENSE")
+        .env("XDG_CONFIG_HOME", config_root)
+        .args([
+            "scan",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            target.to_str().unwrap(),
+            "--sample-size",
+            "100",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["verification_sample"].as_array().unwrap().len(), 1);
+}
+
+#[test]
 fn sample_size_above_hard_maximum_is_rejected_before_license_gate() {
     let (_temp, source, target) = fixture();
     let output = Command::new(env!("CARGO_BIN_EXE_edit-portability-map"))

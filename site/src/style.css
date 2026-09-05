@@ -137,6 +137,7 @@ td:nth-child(3) { font-variant-numeric: tabular-nums; }
 .boundaries p { margin-bottom: 0; color: var(--fog); }
 
 .license { display: grid; grid-template-columns: 1fr minmax(340px, 480px); gap: clamp(56px, 10vw, 140px); border-top: 1px solid var(--line); }
+.license > * { min-width: 0; }
 .license-copy > p:not(.eyebrow) { max-width: 62ch; color: var(--fog); font-family: var(--serif); font-size: 20px; }
 .license-copy ul { padding-left: 20px; color: var(--fog); }
 .license-copy li { margin: 8px 0; }
@@ -197,7 +198,7 @@ footer a { display: inline-flex; min-width: 44px; min-height: 44px; align-items:
   nav { display: none; }
   .hero { grid-template-columns: minmax(0, 1fr); min-height: 0; }
   .terrain { max-width: 760px; }
-  .process, .start, .license { grid-template-columns: 1fr; }
+  .process, .start, .license { grid-template-columns: minmax(0, 1fr); }
   .preview-grid { grid-template-columns: 1fr; }
   .boundaries { grid-column: 1; }
   .strip { grid-template-columns: repeat(2, 1fr); }

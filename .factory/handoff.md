@@ -1,5 +1,12 @@
 # Repair 5 handoff — Edit Portability Map
 
+> Independent verification 6 completed after this repair. The current result
+> is **PASS** with zero findings and zero untested public claims. See
+> `.factory/verification-6.md` for the clean-checkout, live, claim, and
+> consumer-artifact evidence. It reviewed implementation
+> `f13374d266494b2aa81403f1c895d411d1d51c03` and documentation
+> `2b0e627a03cbd2e641c3694e8541a2fec2fff03f`.
+
 ## Status
 
 **PASS.** Review 3's two findings and two untested public claims are resolved.
@@ -136,3 +143,12 @@ Run every command in `.factory/claims.json`. For a clean consumer check:
 cargo install --path target/package/edit-portability-map-0.1.0 --root /tmp/epm-consumer --offline --locked
 /tmp/epm-consumer/bin/edit-portability-map demo
 ```
+
+## Independent verification 6
+
+The fresh independent review passed every declared claim command (14 of 14),
+the clean setup quality gates, a clean packaged consumer installation, and the
+live Playwright suite (27 passed, 1 expected viewport skip). The live output
+matched the rebuilt implementation for 17 checked files. The static CLI has no
+backend-only tenant, persistence, health, or 429 behavior to verify. The
+separate report is `.factory/verification-6.md`.
